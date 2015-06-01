@@ -1,10 +1,12 @@
 #ifndef _AESOCKET_H_
 #define _AESOCKET_H_
 
-/* we must first define FD_SETSIZE before winsock2.h */
-#define FD_SETSIZE   (80*1024)
+
+#define MAX_CNN   (80*1024)
 
 #ifdef WIN32
+/* we must first define FD_SETSIZE before winsock2.h */
+#define FD_SETSIZE  MAX_CNN
 #include "stdlib.h"
 #include "windows.h"
 #include "winsock2.h"
