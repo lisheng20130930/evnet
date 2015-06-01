@@ -231,7 +231,7 @@ int aesoclisten(fd_t s, unsigned short port)
     if(0>bind(s,(struct sockaddr*)&sa_in, sizeof(struct sockaddr_in))){        
         return (-1);
     }
-    if(0>listen(s, 32)){
+    if(0>listen(s, 128)){
         return (-1);
     }    
     return 0;
