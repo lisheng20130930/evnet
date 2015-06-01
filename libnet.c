@@ -67,7 +67,7 @@ int evnet_init()
 {
     aesocketinit();
     g_libnet.channelHead = NULL;
-    g_libnet.evLoop = aeCreateEventLoop(FD_SETSIZE);
+    g_libnet.evLoop = aeCreateEventLoop(MAX_CNN);
     if(!g_libnet.evLoop){
         evnet_uint();
         return (-1);
