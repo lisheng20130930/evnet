@@ -127,12 +127,7 @@ static void _write_callback(struct aeEventLoop *eventLoop, fd_t fd, void *pUsr, 
     char *buff = NULL;
     int buff_len = 0;
     int size = 0;
-    int isjusttry = 0;
-    
-    /* save just try and modify */
-    isjusttry = channel->isjusttry;
-    channel->isjusttry = 0;
-    
+        
     /* set connected to 1 */
     if(!channel->connected){
         channel->connected = 1;
@@ -150,16 +145,13 @@ static void _write_callback(struct aeEventLoop *eventLoop, fd_t fd, void *pUsr, 
         /* next data */
         dataqueue_next_data(&channel->outDataqueue, &buff, &buff_len);
         size = aesocwrite(channel->fd, buff, buff_len);
-        if(size < 0){            
+        if(size < 0){
             channel_close(channel, (-1));
             return;
         }
         
         if(0 == size){
-            if(!isjusttry){
-                channel_close(channel, (-1));
-                return;
-            }
+            channel_close(channel, (-1));
         }
         
         channel->lastinteraction = time(NULL);
@@ -219,28 +211,25 @@ int channel_bind(channel_t *channel, pfn_msg_handler handler, unsigned int timeo
     return erroroccours?0:1;
 }
 
-void channel_send(channel_t *channel, char *data, int len)
+bool channel_send(channel_t *channel, char *data, int len)
 {    
     /* append data to send data queue */
     dataqueue_insert_data(&channel->outDataqueue, data, len);
     
     /* check write enabled, if not enabled, enable it */
     if(channel->flg & _FLG_SEND_ENABLED){
-        return;
+        return TRUE;
     }
     
     /* add send event */
     if(0==aeCreateFileEvent(g_libnet.evLoop,channel->fd,AE_WRITABLE,_write_callback,(void*)channel)){
         channel->flg |= _FLG_SEND_ENABLED;
-        if(channel->connected){
-            channel->isjusttry = 1;
-            _write_callback(g_libnet.evLoop,channel->fd,(void*)channel,AE_WRITABLE);
-        }
-        return;
+        return TRUE;
     }
     
     /* close */
     channel_close(channel, (-1));
+	return FALSE;
 }
 
 static void _check_timeouts(channel_t *head)
