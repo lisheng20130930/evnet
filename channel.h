@@ -17,14 +17,13 @@ typedef struct channel_s
     unsigned int    flg;
     int upstream;
     int connected;
-    int isjusttry;
 }channel_t;
 
 
 channel_t* channel_create(fd_t fd, unsigned int ip, unsigned short port, int upstream);
 void channel_close(channel_t *channel, int errcode);
 int channel_bind(channel_t *channel, pfn_msg_handler handler, unsigned int timeouts, void *pUsr);
-void channel_send(channel_t *channel, char *data, int size);
+bool channel_send(channel_t *channel, char *data, int size);
 void channel_crond(int loops);
 
 
