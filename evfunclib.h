@@ -35,7 +35,7 @@ void* evnet_createchannel(unsigned int ip, unsigned short port);
 void evnet_closechannel(void* c, int errcode);
 int evnet_channelbind(void* c, pfn_msg_handler handler, unsigned int timeouts, void *pUser);
 void* evnet_channeluser(void* c);
-void evnet_channelsend(void* c, char *data, int size);
+bool evnet_channelsend(void* c, char *data, int size);
 unsigned int evnet_channelip(void* c);
 void* evnet_createacceptor(unsigned short port, pfn_msg_handler handler, void *pUsr);
 void evnet_destroyacceptor(void* acceptor);
