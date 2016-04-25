@@ -13,7 +13,7 @@ typedef struct aeApiState {
 } aeApiState;
 
 static int aeApiCreate(aeEventLoop *eventLoop) {
-    aeApiState *state = malloc(sizeof(aeApiState));
+    aeApiState *state = (aeApiState*)malloc(sizeof(aeApiState));
     memset(state, 0x00, sizeof(aeApiState));
 
     FD_ZERO(&state->rfds);
@@ -27,7 +27,7 @@ static void aeApiFree(aeEventLoop *eventLoop) {
 }
 
 static int aeApiAddEvent(aeEventLoop *eventLoop, fd_t fd, int mask) {
-    aeApiState *state = eventLoop->apidata;
+    aeApiState *state = (aeApiState*)eventLoop->apidata;
 
 #ifndef WIN32
     if (mask & AE_READABLE) FD_SET(fd,&state->rfds);
@@ -42,7 +42,7 @@ static int aeApiAddEvent(aeEventLoop *eventLoop, fd_t fd, int mask) {
 }
 
 static void aeApiDelEvent(aeEventLoop *eventLoop, fd_t fd, int mask) {
-    aeApiState *state = eventLoop->apidata;
+    aeApiState *state = (aeApiState*)eventLoop->apidata;
 
 #ifndef WIN32
     if (mask & AE_READABLE) FD_CLR(fd,&state->rfds);
@@ -54,7 +54,7 @@ static void aeApiDelEvent(aeEventLoop *eventLoop, fd_t fd, int mask) {
 }
 
 static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
-    aeApiState *state = eventLoop->apidata;
+    aeApiState *state = (aeApiState*)eventLoop->apidata;
     int retval = 0, j, numevents = 0;
 
     memcpy(&state->_rfds,&state->rfds,sizeof(fd_set));
@@ -194,9 +194,9 @@ aeEventLoop *aeCreateEventLoop(int setsize)
     aeEventLoop *eventLoop = NULL;
     int i = 0;
 
-    eventLoop = malloc(sizeof(aeEventLoop));    
-    eventLoop->events = malloc(sizeof(aeFileEvent)*setsize);
-    eventLoop->fired = malloc(sizeof(aeFiredEvent)*setsize);
+    eventLoop = (aeEventLoop*)malloc(sizeof(aeEventLoop));    
+    eventLoop->events = (aeFileEvent*)malloc(sizeof(aeFileEvent)*setsize);
+    eventLoop->fired = (aeFiredEvent*)malloc(sizeof(aeFiredEvent)*setsize);
     eventLoop->setsize = setsize;
     eventLoop->lastTime = time(NULL);
     eventLoop->maxfd = -1;
@@ -230,15 +230,13 @@ int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask, aeFileProc *proc
 {
     aeFileEvent *fe = NULL;
 
-    if(fd >= eventLoop->setsize)
-    {
+    if(fd >= eventLoop->setsize){
         return (-1);
     }
     
     fe = &eventLoop->events[fd];
 
-    if(aeApiAddEvent(eventLoop, fd, mask)==-1)
-    {
+    if(aeApiAddEvent(eventLoop, fd, mask)==-1){
         return (-1);
     }
     fe->mask |= mask;
