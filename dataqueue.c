@@ -43,10 +43,9 @@ void dataqueue_insert_data(dataqueue_t *queue, void *pBuffer, int wDataSize)
         unsigned int dwPartOneSize = 0;
 
         dwNewBufferSize = queue->bufferSize + __max(queue->bufferSize/2,(unsigned int)wDataSize);
-        pNewQueueServiceBuffer = malloc(dwNewBufferSize);		
+        pNewQueueServiceBuffer = (char*)malloc(dwNewBufferSize);		
         memset(pNewQueueServiceBuffer, 0x00, dwNewBufferSize);
-        
-        //拷贝数据
+                
         if(NULL != queue->m_pDataQueueBuffer){
             dwPartOneSize = queue->terminalPos - queue->queryPos;
             if(dwPartOneSize > 0){
