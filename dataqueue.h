@@ -4,6 +4,7 @@
 
 #include "stdlib.h"
 #include "memory.h"
+#include "stdbool.h"
 
 
 #ifndef __max
@@ -21,8 +22,6 @@ typedef struct dataqueue_s
     char *m_pDataQueueBuffer;
 }dataqueue_t;
 
-
-#define dataqueue_init(p)  do{memset(p, 0x00, sizeof(dataqueue_t));}while(0);
 #define dataqueue_uinit(p) dataqueue_remove_data(p,1)
 #define dataqueue_datasize(p) ((p)->dataSize)
 
