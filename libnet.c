@@ -28,9 +28,9 @@ void* evnet_channeluser(void* c)
     return channel_user((channel_t*)c);
 }
 
-void evnet_channelsend(void* c, char *data, int size)
+bool evnet_channelsend(void* c, char *data, int size)
 {
-    channel_send((channel_t*)c, data, size);
+    return channel_send((channel_t*)c, data, size);
 }
 
 unsigned int evnet_channelip(void* c)
