@@ -4,7 +4,7 @@
 #include "event.h"
 #include "time.h"
 
-#if(defined(WIN32)||defined(__CYGWIN__))
+#if(defined(WIN32)||defined(__CYGWIN__)||defined(__ANDROID__))
 typedef struct aeApiState {
     fd_set rfds, wfds;
     /* We need to have a copy of the fd sets as it's not safe to reuse
