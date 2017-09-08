@@ -182,6 +182,10 @@ int aesocnoblock(fd_t soc)
 	if(fcntl(soc,F_SETFL,flags|O_NONBLOCK )<0){
 		return 0;
 	}
+    #ifdef __IOS__
+    int set = 1;
+    setsockopt(soc,SOL_SOCKET,SO_NOSIGPIPE,(void*)&set,sizeof(int));
+    #endif
     return 1;
 }
 
