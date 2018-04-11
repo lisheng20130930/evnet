@@ -121,9 +121,11 @@ static void _read_callback(struct aeEventLoop *eventLoop, fd_t fd, void *clientd
     handler(pUsr, (void*)&msg, sizeof(msgChannel_t));
 }
 
-static void _write_callback(struct aeEventLoop *eventLoop, fd_t fd, void *pUsr, int mask)
+static void _write_callback(struct aeEventLoop *eventLoop, fd_t fd, void *clientdata, int mask)
 {
-    channel_t *channel = (channel_t*)pUsr;
+    channel_t *channel = (channel_t*)clientdata;
+	pfn_msg_handler handler = channel->handler;
+    void *pUsr = channel->pUsr;
     char *buff = NULL;
     int buff_len = 0;
     int size = 0;
@@ -152,21 +154,30 @@ static void _write_callback(struct aeEventLoop *eventLoop, fd_t fd, void *pUsr, 
         
         if(0 == size){
             channel_close(channel, (-1));
+			return;
         }
         
         channel->lastinteraction = time(NULL);
         dataqueue_distill_data(&channel->outDataqueue, size);
     }
-    
-    /* has data to send */
-    if(0<dataqueue_datasize(&channel->outDataqueue)){
-        return;
+		    
+    /* check has data to send */
+    if(0>=dataqueue_datasize(&channel->outDataqueue)){
+        if(channel->flg & _FLG_SEND_ENABLED){
+			aeDeleteFileEvent(g_libnet.evLoop, channel->fd, AE_WRITABLE);
+			channel->flg &= ~_FLG_SEND_ENABLED;
+		}
     }
-    
-    if(channel->flg & _FLG_SEND_ENABLED){
-        aeDeleteFileEvent(g_libnet.evLoop, channel->fd, AE_WRITABLE);
-        channel->flg &= ~_FLG_SEND_ENABLED;
-    }    
+      
+    // notify sent Msg
+    if(size>0){
+	msgChannel_t msg = {0};
+	memset(&msg, 0x00, sizeof(msgChannel_t));
+	msg.identify = _EVSENT;
+	msg.channel = channel;
+	msg.u.size = size;
+	handler(pUsr, (void*)&msg, sizeof(msgChannel_t));
+    }
 }
 
 int channel_bind(channel_t *channel, pfn_msg_handler handler, unsigned int timeouts, void *pUsr)
@@ -218,18 +229,16 @@ bool channel_send(channel_t *channel, char *data, int len)
     
     /* check write enabled, if not enabled, enable it */
     if(channel->flg & _FLG_SEND_ENABLED){
-        return TRUE;
+        return true;
     }
     
     /* add send event */
     if(0==aeCreateFileEvent(g_libnet.evLoop,channel->fd,AE_WRITABLE,_write_callback,(void*)channel)){
         channel->flg |= _FLG_SEND_ENABLED;
-        return TRUE;
+        return true;
     }
     
-    /* close */
-    channel_close(channel, (-1));
-	return FALSE;
+    return false;
 }
 
 static void _check_timeouts(channel_t *head)
