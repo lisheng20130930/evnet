@@ -6,21 +6,22 @@
 /* channel message */
 #define _EVDATA       (1)
 #define _EVCLOSED     (2)
-typedef struct msgChannel_s
-{
+#define _EVSENT       (3)
+
+typedef struct msgChannel_s{
     int identify;
     void* channel;
     union{
         int errcode;
         dataqueue_t *dataqueue;
+		int size;
     }u;
 }msgChannel_t;
 
 
 /* acceptor message */
 #define _EVACCEPTED  (1)
-typedef struct msgAcceptor_s
-{
+typedef struct msgAcceptor_s{
     int identify;
     union{
         void* channel;
@@ -45,7 +46,7 @@ unsigned int evnet_hostbyname(char *name);
 int evnet_init();
 void evnet_uint();
 void evnet_loop(unsigned int loops);
-
+unsigned short evnet_channelport(void* c);
 
 
 #endif
