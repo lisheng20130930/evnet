@@ -329,8 +329,7 @@ unsigned int aehostbyname(char *name)
 		return 0;
 	}
 	pszTemp = (char*)&uIP;
-	for(j=0;j<1&&NULL!=*(pHost->h_addr_list);pHost->h_addr_list++,j++)
-	{
+	for(j=0;j<1&&NULL!=*(pHost->h_addr_list);pHost->h_addr_list++,j++){
 		memcpy(pszTemp,*(pHost->h_addr_list),pHost->h_length);
 		break;
 	}
