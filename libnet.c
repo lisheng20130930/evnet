@@ -38,6 +38,11 @@ unsigned int evnet_channelip(void* c)
     return channel_ip((channel_t*)c);
 }
 
+unsigned short evnet_channelport(void* c)
+{
+	return channel_port((channel_t*)c);
+}
+
 void* evnet_createacceptor(unsigned short port, pfn_msg_handler handler, void *pUsr)
 {
     return acceptor_create(port, handler, pUsr);
