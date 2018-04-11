@@ -4,7 +4,7 @@
 #include "event.h"
 #include "time.h"
 
-#if(defined(WIN32)||defined(__CYGWIN__)||defined(__ANDROID__))
+#if(defined(WIN32)||defined(__IOS__)||defined(__ANDROID__))
 typedef struct aeApiState {
     fd_set rfds, wfds;
     /* We need to have a copy of the fd sets as it's not safe to reuse
@@ -92,6 +92,9 @@ static char* aeApiName(void) {
     return "select";
 }
 #else
+#include <stdio.h>
+#include <sys/time.h>
+#include <time.h>
 #include <sys/epoll.h>
 
 typedef struct aeApiState {
@@ -198,7 +201,7 @@ aeEventLoop *aeCreateEventLoop(int setsize)
     eventLoop->events = (aeFileEvent*)malloc(sizeof(aeFileEvent)*setsize);
     eventLoop->fired = (aeFiredEvent*)malloc(sizeof(aeFiredEvent)*setsize);
     eventLoop->setsize = setsize;
-    eventLoop->lastTime = time(NULL);
+    eventLoop->lastTime = (unsigned int)time(NULL);
     eventLoop->maxfd = -1;
     if(aeApiCreate(eventLoop) == -1)
     {
@@ -291,7 +294,7 @@ int aeProcessEvents(aeEventLoop *eventLoop)
      * to fire. */
     if (eventLoop->maxfd != -1){
         int j;
-        struct timeval tv, *tvp;
+        struct timeval tv={0}, *tvp=NULL;
         
         /* If we have to check for events but need to return
          * ASAP because of AE_DONT_WAIT we need to set the timeout
