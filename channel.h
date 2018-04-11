@@ -34,6 +34,12 @@ unsigned int channel_ip(channel_t *channel)
 }
 
 static __inline
+unsigned int channel_port(channel_t *channel)
+{
+    return channel->port;
+}
+
+static __inline
 void* channel_user(channel_t *channel)
 {
     return channel->pUsr;
