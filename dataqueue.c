@@ -10,6 +10,7 @@ void dataqueue_remove_data(dataqueue_t *queue, int bFreeMemroy)
     if(bFreeMemroy){
         queue->bufferSize=0;
         free(queue->m_pDataQueueBuffer);
+        queue->m_pDataQueueBuffer=NULL;
     }
 }
 
@@ -60,7 +61,9 @@ void dataqueue_insert_data(dataqueue_t *queue, void *pBuffer, int wDataSize)
         queue->insertPos = queue->dataSize;
         queue->terminalPos = queue->dataSize;
         queue->bufferSize = dwNewBufferSize;
-        free(queue->m_pDataQueueBuffer);
+        if(queue->m_pDataQueueBuffer){
+            free(queue->m_pDataQueueBuffer);
+        }
         queue->m_pDataQueueBuffer = pNewQueueServiceBuffer;
     }
     
