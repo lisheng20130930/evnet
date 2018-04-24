@@ -61,7 +61,7 @@ void dataqueue_insert_data(dataqueue_t *queue, void *pBuffer, int wDataSize)
         queue->insertPos = queue->dataSize;
         queue->terminalPos = queue->dataSize;
         queue->bufferSize = dwNewBufferSize;
-        if(queue->m_pDataQueueBuffer){
+        if(NULL != queue->m_pDataQueueBuffer){
             free(queue->m_pDataQueueBuffer);
         }
         queue->m_pDataQueueBuffer = pNewQueueServiceBuffer;
