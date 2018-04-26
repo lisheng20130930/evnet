@@ -68,11 +68,11 @@ unsigned int evnet_hostbyname(char *name)
     return aehostbyname(name);
 }
 
-int evnet_init()
+int evnet_init(int size)
 {
     aesocketinit();
     g_libnet.channelHead = NULL;
-    g_libnet.evLoop = aeCreateEventLoop(MAX_CNN);
+    g_libnet.evLoop = aeCreateEventLoop(size);
     if(!g_libnet.evLoop){
         evnet_uint();
         return (-1);
