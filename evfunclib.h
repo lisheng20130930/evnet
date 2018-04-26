@@ -43,7 +43,7 @@ void evnet_destroyacceptor(void* acceptor);
 int evnet_acceptorstart(void* acceptor);
 void evnet_acceptorstop(void* acceptor);
 unsigned int evnet_hostbyname(char *name);
-int evnet_init();
+int evnet_init(int size);
 void evnet_uint();
 void evnet_loop(unsigned int loops);
 unsigned short evnet_channelport(void* c);
