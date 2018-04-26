@@ -82,7 +82,7 @@ int main(int argv, char **argc)
 {
     void* acceptor = NULL;
 
-    evnet_init();
+    evnet_init(2000);
     acceptor = evnet_createacceptor(12000, _acceptor_callback, NULL);
     evnet_acceptorstart(acceptor);
     while(1){
