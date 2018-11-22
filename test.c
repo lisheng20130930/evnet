@@ -88,6 +88,6 @@ int main(int argv, char **argc)
     while(1){
         evnet_loop(0);
     }
-    
+    printf("end");
     evnet_uint();
 }
