@@ -1,5 +1,5 @@
 # evnet
-A Network Lib Cross Win32 and Linux
+A Network Lib Cross win32, ios ,android , linux!
 
 Used For C Server
 
