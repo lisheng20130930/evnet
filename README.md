@@ -1,7 +1,7 @@
 # evnet
 A Network Lib Cross win32, ios ,android , linux!
 
-Used For C Server
+Used For C Server、C Client as well。
 
 You Can Debug On Win, and Release On Linux!
 
