@@ -1,8 +1,10 @@
-/* Code From Redis */
 #include "evfunclib.h"
 #include "aesocket.h"
 #include "event.h"
 #include "time.h"
+#ifndef WIN32
+#include "sys/time.h"
+#endif
 
 #if(defined(WIN32)||defined(__IOS__)||defined(__ANDROID__))
 typedef struct aeApiState {

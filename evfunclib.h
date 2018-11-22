@@ -3,6 +3,9 @@
 
 #include "dataqueue.h"
 
+
+#define  IPSTRSIZE   (128)
+
 /* channel message */
 #define _EVDATA       (1)
 #define _EVCLOSED     (2)
@@ -32,17 +35,17 @@ typedef struct msgAcceptor_s{
 typedef int (*pfn_msg_handler)(void *pUser, void *msg, unsigned int size);
 
 
-void* evnet_createchannel(unsigned int ip, unsigned short port);
+void* evnet_createchannel(char *ipStr, unsigned short port, int security);
 void evnet_closechannel(void* c, int errcode);
 int evnet_channelbind(void* c, pfn_msg_handler handler, unsigned int timeouts, void *pUser);
 void* evnet_channeluser(void* c);
 bool evnet_channelsend(void* c, char *data, int size);
-unsigned int evnet_channelip(void* c);
-void* evnet_createacceptor(unsigned short port, pfn_msg_handler handler, void *pUsr);
+char* evnet_channelip(void* c);
+void* evnet_createacceptor(unsigned short port, int secrity, char *cert, pfn_msg_handler handler, void *pUsr);
 void evnet_destroyacceptor(void* acceptor);
 int evnet_acceptorstart(void* acceptor);
 void evnet_acceptorstop(void* acceptor);
-unsigned int evnet_hostbyname(char *name);
+void evnet_hostbyname(char *name, char ipStr[], int len);
 int evnet_init(int size);
 void evnet_uint();
 void evnet_loop(unsigned int loops);

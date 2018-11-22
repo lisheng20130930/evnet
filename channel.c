@@ -13,7 +13,70 @@
 #define _FLG_SEND_ENABLED    (0x02)
 
 
-channel_t* channel_create(fd_t fd, unsigned int ip, unsigned short port, int upstream)
+#ifdef SSL_SUPPORT
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+/* Win32 load openSSL libs */
+#ifdef WIN32
+#define EV_FD_TO_WIN32_HANDLE(fd) _get_osfhandle(fd)
+#pragma comment (lib,"libeay32.lib")
+#pragma comment (lib,"ssleay32.lib")
+#endif
+
+
+static __inline int _SSL_write(void *ssl, char *pszBuff, int iSize)
+{
+	int ret = SSL_write((SSL*)ssl,pszBuff,iSize);
+	if(ret<=0){
+		if(SSL_ERROR_WANT_WRITE!=SSL_get_error((SSL*)ssl,ret)){
+            return (-1);
+        }
+		return 0;
+	}
+	return (0>=ret)?0:ret;
+}
+
+static __inline int _SSL_read(void *ssl, char *pszBuff, int iSize)
+{
+	int ret = SSL_read((SSL*)ssl,pszBuff,iSize);
+	if(ret<=0){
+		if(SSL_ERROR_WANT_READ!=SSL_get_error((SSL*)ssl,ret)){			
+            return (-1);
+        }		
+		return 0;
+	}
+	return (0>=ret)?0:ret;
+}
+
+static __inline int _SSL_do_handshake(void *ssl)
+{
+	int ret = SSL_do_handshake((SSL*)ssl);
+	if(ret==1){ // SUCCESS
+		return 0;
+	}
+	ret = SSL_get_error((SSL*)ssl,ret);
+	if(ret==SSL_ERROR_WANT_WRITE||ret==SSL_ERROR_WANT_READ){
+		return _wouldblock;
+	}
+	return -1;
+}
+
+void Evnet_initSSL()
+{
+	SSL_load_error_strings();
+	SSL_library_init();
+	SSLeay_add_ssl_algorithms();
+}
+
+#endif
+
+
+static void _write_callback(struct aeEventLoop *eventLoop, fd_t fd, void *clientdata, int mask);
+static void _read_callback(struct aeEventLoop *eventLoop, fd_t fd, void *clientdata, int mask);
+
+
+channel_t* channel_create(fd_t fd, char* ipStr, unsigned short port, int upstream, int security)
 {
     channel_t *channel = NULL;
 
@@ -23,9 +86,12 @@ channel_t* channel_create(fd_t fd, unsigned int ip, unsigned short port, int ups
     }
     memset(channel, 0x00, sizeof(channel_t));
     channel->fd = fd;
-    channel->ip = ip;
+    strcpy(channel->ipStr,ipStr);
     channel->port = port;
     channel->upstream = upstream;
+	#ifdef SSL_SUPPORT
+	channel->security = security;
+	#endif
 
     if(g_libnet.channelHead){
         channel->next = g_libnet.channelHead;
@@ -60,7 +126,20 @@ void channel_close(channel_t *channel, int errcode)
     }
     channel->next = NULL;
     channel->prev = NULL;
-    
+
+	#ifdef SSL_SUPPORT
+	/* free ssl */
+	if(NULL!=channel->ssl){
+		SSL_shutdown((SSL*)channel->ssl);
+		SSL_free((SSL*)channel->ssl);
+		channel->ssl = NULL;
+	}
+	/* free upstream SSL ctx */
+	if(channel->upstream&&NULL!=channel->ctx){
+		SSL_CTX_free((SSL_CTX*)channel->ctx);
+		channel->ctx = NULL;
+	}
+	#endif
     /* notify channel close if has been binded */
     if(NULL != handler){
         memset(&msg, 0x00, sizeof(msgChannel_t));
@@ -92,6 +171,57 @@ void channel_close(channel_t *channel, int errcode)
     free(channel);
 }
 
+
+static bool channel_handshake(struct aeEventLoop *eventLoop, channel_t *channel)
+{
+	#ifdef SSL_SUPPORT
+	if(channel->security){
+		// when socket conneted, we setup SSL
+		/* upstream setup ssl ctx */
+		if(channel->upstream&&NULL==channel->ctx){
+			channel->ctx = SSL_CTX_new(TLSv1_method());
+		}
+		/* setup SSL */
+		if(NULL==channel->ssl){
+			channel->ssl = SSL_new((SSL_CTX*)channel->ctx);
+			SSL_set_mode((SSL*)channel->ssl, SSL_MODE_ENABLE_PARTIAL_WRITE);
+			#ifdef WIN32
+			SSL_set_fd((SSL*)channel->ssl,EV_FD_TO_WIN32_HANDLE(channel->fd));
+			#else
+			SSL_set_fd((SSL*)channel->ssl,channel->fd);
+			#endif
+			if(channel->upstream){
+				SSL_set_connect_state((SSL*)channel->ssl);
+			}else{
+				SSL_set_accept_state((SSL*)channel->ssl);
+			}
+		}
+		
+		/* handle handshake */
+		int ret = _SSL_do_handshake(channel->ssl);
+		if(0!=ret){
+			if(_wouldblock!=ret){
+				channel_close(channel, (-1));
+			}
+			return false;
+		}		
+	}
+	#endif
+	
+	if(channel->upstream){
+		if(0==(channel->flg&_FLG_RECV_ENABLED)){
+			/* enable read */
+			if(0!=aeCreateFileEvent(g_libnet.evLoop,channel->fd,AE_READABLE,_read_callback,(void*)channel)){
+				channel_close(channel, (-1));
+				return false;
+			}
+			channel->flg |= _FLG_RECV_ENABLED;
+		}
+	}
+	channel->connected = 1; //CONNECTED
+	return true;
+}
+
 static void _read_callback(struct aeEventLoop *eventLoop, fd_t fd, void *clientdata, int mask)
 {
     channel_t *channel = (channel_t*)clientdata;
@@ -99,9 +229,27 @@ static void _read_callback(struct aeEventLoop *eventLoop, fd_t fd, void *clientd
     void *pUsr = channel->pUsr;
     msgChannel_t msg = {0};
     int size = 0;
+
+	if(!channel->connected){
+		if(!channel->upstream){
+			if(!channel_handshake(eventLoop,channel)){
+				return;
+			}
+		}else{
+			return;//waiting handeshake(upstream)
+		}
+    }
     
     /* recv data to data queue */
-    size = aesocread(channel->fd, g_libnet._buff, _BUFF_LEN);
+	#ifdef SSL_SUPPORT
+	if(channel->security){		
+		size = _SSL_read(channel->ssl, g_libnet._buff, _BUFF_LEN);
+		if(size==0){ //SSL can read 0
+			return;
+		}
+    }else //{}//CHK
+	#endif
+	size = aesocread(channel->fd, g_libnet._buff, _BUFF_LEN);
     if(size <= 0){
         channel_close(channel, (-1));
         return;
@@ -129,32 +277,32 @@ static void _write_callback(struct aeEventLoop *eventLoop, fd_t fd, void *client
     char *buff = NULL;
     int buff_len = 0;
     int size = 0;
-        
-    /* set connected to 1 */
-    if(!channel->connected){
-        channel->connected = 1;
+    
+	if(!channel->connected){
         if(channel->upstream){
-            /* enable read */
-            if(0!=aeCreateFileEvent(g_libnet.evLoop,channel->fd,AE_READABLE,_read_callback,(void*)channel)){              
-                channel_close(channel, (-1));
-                return;
+            if(!channel_handshake(eventLoop,channel)){
+				return;
             }
-            channel->flg |= _FLG_RECV_ENABLED;
+        }else{
+			return; //waiting handeshake(accecpt)
         }
     }
     
     if(0 < dataqueue_datasize(&channel->outDataqueue)){
         /* next data */
         dataqueue_next_data(&channel->outDataqueue, &buff, &buff_len);
-        size = aesocwrite(channel->fd, buff, buff_len);
-        if(size < 0){
-            channel_close(channel, (-1));
+		#ifdef SSL_SUPPORT
+		if(channel->security){			
+			size = _SSL_write(channel->ssl, buff, buff_len);	
+			if(size==0){ //SSL can write 0
+				return;
+			}
+		}else //{}//CHK
+		#endif
+		size = aesocwrite(channel->fd, buff, buff_len);
+        if(size <= 0){
+			channel_close(channel, (-1));
             return;
-        }
-        
-        if(0 == size){
-            channel_close(channel, (-1));
-			return;
         }
         
         channel->lastinteraction = time(NULL);
@@ -171,12 +319,12 @@ static void _write_callback(struct aeEventLoop *eventLoop, fd_t fd, void *client
       
     // notify sent Msg
     if(size>0){
-	msgChannel_t msg = {0};
-	memset(&msg, 0x00, sizeof(msgChannel_t));
-	msg.identify = _EVSENT;
-	msg.channel = channel;
-	msg.u.size = size;
-	handler(pUsr, (void*)&msg, sizeof(msgChannel_t));
+		msgChannel_t msg = {0};
+		memset(&msg, 0x00, sizeof(msgChannel_t));
+		msg.identify = _EVSENT;
+		msg.channel = channel;
+		msg.u.size = size;
+		handler(pUsr, (void*)&msg, sizeof(msgChannel_t));
     }
 }
 
@@ -196,7 +344,7 @@ int channel_bind(channel_t *channel, pfn_msg_handler handler, unsigned int timeo
         }
         
         /* connect */
-        if (0!=aesocconnect(channel->fd, _HTONL(channel->ip), channel->port)){
+        if (0!=aesocconnect(channel->fd, (char*)channel->ipStr, channel->port)){
             erroroccours = 1;
             break;
         }
@@ -238,7 +386,7 @@ bool channel_send(channel_t *channel, char *data, int len)
         return true;
     }
     
-    return false;
+	return false;
 }
 
 static void _check_timeouts(channel_t *head)

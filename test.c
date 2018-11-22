@@ -83,11 +83,13 @@ int main(int argv, char **argc)
     void* acceptor = NULL;
 
     evnet_init(2000);
-    acceptor = evnet_createacceptor(12000, _acceptor_callback, NULL);
+    acceptor = evnet_createacceptor(12000, 0, NULL, _acceptor_callback, NULL);
     evnet_acceptorstart(acceptor);
     while(1){
         evnet_loop(0);
     }
     printf("end");
     evnet_uint();
+
+	return 0;
 }

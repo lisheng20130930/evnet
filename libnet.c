@@ -8,9 +8,9 @@
 
 libnet_t g_libnet = {0};
 
-void* evnet_createchannel(unsigned int ip, unsigned short port)
+void* evnet_createchannel(char *ipStr, unsigned short port, int security)
 {
-    return (void*)upstream_channel(ip, port);
+    return (void*)upstream_channel(ipStr, port, security);
 }
 
 void evnet_closechannel(void* c, int errcode)
@@ -33,7 +33,7 @@ bool evnet_channelsend(void* c, char *data, int size)
     return channel_send((channel_t*)c, data, size);
 }
 
-unsigned int evnet_channelip(void* c)
+char* evnet_channelip(void* c)
 {
     return channel_ip((channel_t*)c);
 }
@@ -43,9 +43,9 @@ unsigned short evnet_channelport(void* c)
 	return channel_port((channel_t*)c);
 }
 
-void* evnet_createacceptor(unsigned short port, pfn_msg_handler handler, void *pUsr)
+void* evnet_createacceptor(unsigned short port, int secrity, char *cert, pfn_msg_handler handler, void *pUsr)
 {
-    return acceptor_create(port, handler, pUsr);
+    return acceptor_create(AF_INET,port, secrity, cert, handler, pUsr);
 }
 
 void evnet_destroyacceptor(void* acceptor)
@@ -63,14 +63,17 @@ void evnet_acceptorstop(void* acceptor)
     acceptor_stop((acceptor_t*)acceptor);
 }
 
-unsigned int evnet_hostbyname(char *name)
+void evnet_hostbyname(char *name, char ipStr[], int len)
 {
-    return aehostbyname(name);
+    aehostbyname(name, ipStr, len);
 }
 
 int evnet_init(int size)
 {
     aesocketinit();
+#ifdef SSL_SUPPORT
+	Evnet_initSSL();
+#endif
     g_libnet.channelHead = NULL;
     g_libnet.evLoop = aeCreateEventLoop(size);
     if(!g_libnet.evLoop){

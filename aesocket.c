@@ -1,3 +1,4 @@
+#include "stdio.h"
 #include "aesocket.h"
 
 #ifdef WIN32
@@ -14,12 +15,12 @@ static int aesocnoblock(SOCKET soc)
     return 1;
 }
 
-fd_t aesoccreate(int acceptor)
+fd_t aesoccreate(int family, int acceptor)
 {
     SOCKET soc = 0;
     int on = 1;
     
-    soc = socket(AF_INET,SOCK_STREAM,0);
+    soc = socket(family,SOCK_STREAM,0);
     if(INVALID_SOCKET == soc){
         return _INVALIDFD;
     }
@@ -52,7 +53,7 @@ int aesoclisten(fd_t s, unsigned short usPort)
     return 0;
 }
 
-int aesocaccept(fd_t s, fd_t *sa, unsigned int *ip, unsigned short *port)
+int aesocaccept(fd_t s, fd_t *sa, char ipStr[], int size, unsigned short *port)
 {
     SOCKET socket = EV_FD_TO_WIN32_HANDLE(s);
     SOCKET sockConn = INVALID_SOCKET;
@@ -70,25 +71,25 @@ int aesocaccept(fd_t s, fd_t *sa, unsigned int *ip, unsigned short *port)
         closesocket(sockConn);
         return (-1);
     }
-    if(ip){
-        *ip = addrIn.sin_addr.s_addr;
+    if(size>0){
+        strcpy(ipStr,inet_ntoa(((struct sockaddr_in*)&addrIn)->sin_addr));
     }
     if(port){
-        *port = ntohs(addrIn.sin_port);
+        *port = ntohs(((struct sockaddr_in*)&addrIn)->sin_port);
     }    
     *sa = EV_WIN32_HANDLE_TO_FD(sockConn);    
     return 0;
-}   
+}
 
 
-int aesocconnect(fd_t iSocket, unsigned int ip, unsigned short port)
+int aesocconnect(fd_t iSocket, char* ipStr, unsigned short port)
 {
     SOCKET socket = EV_FD_TO_WIN32_HANDLE(iSocket);
     struct sockaddr_in addr;
     
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    addr.sin_addr.s_addr = htonl(ip);    
+    addr.sin_addr.s_addr = inet_addr(ipStr);
     if(SOCKET_ERROR==connect(socket,(const struct sockaddr*)&addr,sizeof(addr))){
         if(WSAEWOULDBLOCK!=WSAGetLastError()){
             return (-1);
@@ -153,22 +154,21 @@ void aesocketuint()
     WSACleanup();
 }
 
-unsigned int aehostbyname(char *name)
+void aehostbyname(char *name, char ipStr[], int len)
 {
     struct hostent  *pHost = NULL;
     int j = 0;
-    char *pszTemp = NULL;
-	unsigned int ip = 0;
+    unsigned char pszTemp[4] = {0};
        
     if(!(pHost=gethostbyname(name))){
-        return 0;  
+        return;  
     }
-    pszTemp = (char*)&ip;
     for(j=0;j<1&&NULL!=*(pHost->h_addr_list);pHost->h_addr_list++,j++){
         memcpy(pszTemp,*(pHost->h_addr_list),pHost->h_length);
-        break;
+		break;
     }
-    return ip;
+	sprintf(ipStr,"%u.%u.%u.%u",pszTemp[0],pszTemp[1],pszTemp[2],pszTemp[3]);
+	return;
 }
 #else
 int aesocnoblock(fd_t soc)
@@ -189,12 +189,12 @@ int aesocnoblock(fd_t soc)
     return 1;
 }
 
-fd_t aesoccreate(int acceptor)
+fd_t aesoccreate(int family, int acceptor)
 {
     fd_t soc = 0;
 	int on = 1;
-    
-    soc = socket(AF_INET,SOCK_STREAM,0);
+          
+    soc = socket(family,SOCK_STREAM,0);
     if((-1)==soc){
         return _INVALIDFD;
     }
@@ -209,14 +209,29 @@ fd_t aesoccreate(int acceptor)
     return soc;
 }
 
-extern int aesocconnect(fd_t iSocket, unsigned int ip, unsigned short port)
+int aesocconnect(fd_t iSocket, char *ipStr, unsigned short port)
 {
-    struct sockaddr_in addr;
-
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = htonl(ip);
-	if((-1)==connect(iSocket,(const struct sockaddr*)&addr,sizeof(addr))){
+    struct sockaddr_in addr4 = {0};
+    struct sockaddr_in6 addr6 = {0};
+    void *addr = NULL;
+    int addrlen = 0;
+    
+    int isIpV6 = isIPv6Addr(ipStr);
+    if(!isIpV6){
+        addr4.sin_family = AF_INET;
+        addr4.sin_port = htons(port);
+        inet_pton(AF_INET,ipStr,&addr4.sin_addr.s_addr);
+        addr = &addr4;
+        addrlen = sizeof(addr4);
+    }else{
+        addr6.sin6_family = AF_INET6;
+        addr6.sin6_port = htons(port);
+        inet_pton(AF_INET6,ipStr,&addr6.sin6_addr);
+        addr = &addr6;
+        addrlen = sizeof(addr6);
+    }
+	
+	if((-1)==connect(iSocket,(const struct sockaddr*)addr,addrlen)){
 		if(errno!=EINPROGRESS){
 			return (-1);
 		}
@@ -241,7 +256,7 @@ int aesoclisten(fd_t s, unsigned short port)
     return 0;
 }
 
-int aesocaccept(fd_t s, fd_t *sa, unsigned int *ip, unsigned short *port)
+int aesocaccept(fd_t s, fd_t *sa, char *ipStr, int size, unsigned short *port)
 {
     fd_t sockConn = _INVALIDFD;
     struct sockaddr addrIn;
@@ -258,13 +273,13 @@ int aesocaccept(fd_t s, fd_t *sa, unsigned int *ip, unsigned short *port)
         close(sockConn);
         return (-1);
     }
-    if(ip){
-        *ip = ((struct sockaddr_in*)&addrIn)->sin_addr.s_addr;
+    if(size>0){
+		strcpy(ipStr,inet_ntoa(((struct sockaddr_in*)&addrIn)->sin_addr));
     }
     if(port){
         *port = ntohs(((struct sockaddr_in*)&addrIn)->sin_port);
     }    
-    *sa = sockConn;    
+    *sa = sockConn;
     return 0;
 }   
 
@@ -318,21 +333,21 @@ void aesocketuint()
 {
 }
 
-unsigned int aehostbyname(char *name)
+void aehostbyname(char *name, char *ipStr, int maxlen)
 {
-	struct hostent *pHost = NULL;
-	int j = 0;
-	char *pszTemp = NULL;
-	unsigned int uIP = 0;
-
-	if(!(pHost=gethostbyname(name))){
-		return 0;
-	}
-	pszTemp = (char*)&uIP;
-	for(j=0;j<1&&NULL!=*(pHost->h_addr_list);pHost->h_addr_list++,j++){
-		memcpy(pszTemp,*(pHost->h_addr_list),pHost->h_length);
-		break;
-	}
-	return uIP;
+    struct addrinfo *result = NULL;
+    getaddrinfo(name, NULL, NULL, &result);
+    const struct sockaddr *sa = result->ai_addr;
+    switch(sa->sa_family) {
+        case AF_INET://ipv4
+            inet_ntop(AF_INET, &(((struct sockaddr_in *)sa)->sin_addr),ipStr, maxlen);
+            break;
+        case AF_INET6://ipv6
+            inet_ntop(AF_INET6, &(((struct sockaddr_in6 *)sa)->sin6_addr),ipStr, maxlen);
+            break;
+        default:
+            break;
+    }
+	freeaddrinfo(result);
 }
 #endif
