@@ -1,3 +1,11 @@
+/*
+ * httpc.h 
+ *
+ * The httpD client API for http(s) app
+ *
+ * Copyright (C) Listen.Li, 2018
+ *
+ */
 #ifndef HTTP_C_H
 #define HTTP_C_H
 

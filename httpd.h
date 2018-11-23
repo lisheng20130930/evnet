@@ -1,3 +1,11 @@
+/*
+ * httpd.h 
+ *
+ * The httpD server API for http(s) app server
+ *
+ * Copyright (C) Listen.Li, 2018
+ *
+ */
 #ifndef HTTP_D_H
 #define HTTP_D_H
 

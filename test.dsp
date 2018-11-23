@@ -286,7 +286,39 @@ SOURCE=.\libnet.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\stdbool.h
+SOURCE=.\msg_frame.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\msg_pack.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\msg_pack.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\msgc.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\msgc.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\msgd.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\msgd.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\msgparser.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\msgpraser.c
 # End Source File
 # Begin Source File
 
