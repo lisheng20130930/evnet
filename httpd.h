@@ -1,7 +1,7 @@
 /*
  * httpd.h 
  *
- * The httpD server API for http(s) app server
+ * The http server API for http(s) app server
  *
  * Copyright (C) Listen.Li, 2018
  *

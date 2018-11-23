@@ -1,3 +1,11 @@
+/*
+ * msgc.h 
+ *
+ * The msg(tcp) client API for msg(s) app client
+ *
+ * Copyright (C) Listen.Li, 2018
+ *
+ */
 #ifndef MSG_C_H
 #define MSG_C_H
 

@@ -1,7 +1,7 @@
 /*
  * httpc.h 
  *
- * The httpD client API for http(s) app
+ * The http client API for http(s) app client
  *
  * Copyright (C) Listen.Li, 2018
  *
