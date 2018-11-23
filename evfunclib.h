@@ -1,3 +1,12 @@
+/*
+ * evnetfunclib.h 
+ *
+ * The lower layer API for tcp and socket level operations,
+ * which extensions such as httpc/httpd are based on.
+ *
+ * Copyright (C) Listen.Li, 2018
+ *
+ */
 #ifndef _EVFUNCLIB_H_
 #define _EVFUNCLIB_H_
 
