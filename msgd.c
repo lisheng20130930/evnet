@@ -3,9 +3,10 @@
 #include "msg_pack.h"
 #include "msgd.h"
 
+
 typedef struct _msgd_s{
-	usr_handle_t handler;
-	pfnUsrClose pfnClose;
+	conn_handle_t handler;
+	conn_close_t pfnClose;
 	int timeout;
 	int maxCon;
 	void *acceptor;
@@ -16,32 +17,32 @@ typedef struct _msgd_s{
 
 static bool msgd_continte(void *pUsr, unsigned short wMainCmdID, unsigned short wSubCmdID, char *pData, unsigned short wDataSize)
 {
-	usrBase_t *usr = (usrBase_t*)pUsr;
-	msgd_t *msgD = (msgd_t*)usr->msgd;	
-	return msgD->handler(usr,wMainCmdID,wSubCmdID,pData,wDataSize);
+	conn_t *conn = (conn_t*)pUsr;
+	msgd_t *msgD = (msgd_t*)conn->msgd;	
+	return msgD->handler(conn,wMainCmdID,wSubCmdID,pData,wDataSize);
 }
 
 
 static int _channel_callback(void *pUsr, void *msg, unsigned int size)
 {
     msgChannel_t *msgChannel = (msgChannel_t*)msg;
-	usrBase_t *usr = (usrBase_t*)pUsr;
-	msgd_t *msgD = (msgd_t*)usr->msgd;
+	conn_t *conn = (conn_t*)pUsr;
+	msgd_t *msgD = (msgd_t*)conn->msgd;
 	
     switch(msgChannel->identify){
     case _EVDATA:
-		DBGPRINT(EERROR,("[MSGD] dwUsrID = %u, __EVDATA-SIZE=%d\r\n", usr->gid, dataqueue_datasize(msgChannel->u.dataqueue)));
-		if(!msgparser_parser(&usr->parser, msgChannel->u.dataqueue, msgd_continte, usr)){
+		DBGPRINT(EERROR,("[MSGD] dwUsrID = %u, __EVDATA-SIZE=%d\r\n", conn->gid, dataqueue_datasize(msgChannel->u.dataqueue)));
+		if(!msgparser_parser(&conn->parser, msgChannel->u.dataqueue, msgd_continte, conn)){
 			evnet_closechannel(msgChannel->channel,0);
 		}	
         break;
     case _EVCLOSED:
 		if(msgD->pfnClose){
-			msgD->pfnClose(usr);
+			msgD->pfnClose(conn);
 		}
 		msgD->curCon--;
-		DBGPRINT(EERROR,("[MSGD] EVclosed (usr-gid=%u)...curCon: %d\r\n",usr->gid,msgD->curCon));
-		free(usr);
+		DBGPRINT(EERROR,("[MSGD] EVclosed (conn-gid=%u)...curCon: %d\r\n",conn->gid,msgD->curCon));
+		free(conn);
         break;
     default:
         break;
@@ -50,22 +51,22 @@ static int _channel_callback(void *pUsr, void *msg, unsigned int size)
 }
 
 
-static bool usr_send(usrBase_t *usr, unsigned short wMainCmdID, unsigned short wSubCmdID, char* pData, unsigned short wDataSize)
+static bool conn_send(conn_t *conn, unsigned short wMainCmdID, unsigned short wSubCmdID, char* pData, unsigned short wDataSize)
 {
-	msgparser_t *parser = &usr->parser;
-	if(NULL==usr->c){
+	msgparser_t *parser = &conn->parser;
+	if(NULL==conn->c){
 		return false;
 	}    
 	char *cbDataBuffer = NULL;
     unsigned short wSendSize = make_msg_packet(&cbDataBuffer,wMainCmdID,wSubCmdID,pData,wDataSize);
 	parser->sendPacketCount++;
-	return evnet_channelsend(usr->c, (char*)cbDataBuffer, wSendSize);
+	return evnet_channelsend(conn->c, (char*)cbDataBuffer, wSendSize);
 }
 
 
-static void usr_close(usrBase_t *usr, int errorCode)
+static void conn_close(conn_t *conn, int errorCode)
 {
-	evnet_closechannel(usr->c,errorCode);
+	evnet_closechannel(conn->c,errorCode);
 }
 
 static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
@@ -73,7 +74,7 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
     msgAcceptor_t *msgAcceptor = (msgAcceptor_t*)msg;
 	msgd_t *msgD = (msgd_t*)pUser;
 	static int g_ID = 0;
-	usrBase_t *usr = NULL;
+	conn_t *conn = NULL;
 	
 	if(msgD->curCon>=msgD->maxCon){
 		DBGPRINT(EERROR,("[MSGD] Too much Connect curCon=%d\r\n",msgD->curCon));
@@ -81,27 +82,27 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
 		return 0;
 	}
 	
-	usr = (usrBase_t*)malloc(sizeof(usrBase_t));
-	memset(usr,0x00,sizeof(usrBase_t));
-	usr->c = msgAcceptor->u.channel;
-	usr->send = usr_send;
-	usr->close = usr_close;
-	usr->gid = g_ID++;
-	usr->msgd = msgD;
+	conn = (conn_t*)malloc(sizeof(conn_t));
+	memset(conn,0x00,sizeof(conn_t));
+	conn->c = msgAcceptor->u.channel;
+	conn->send = conn_send;
+	conn->close = conn_close;
+	conn->gid = g_ID++;
+	conn->msgd = msgD;
 	
-    evnet_channelbind(msgAcceptor->u.channel,_channel_callback,msgD->timeout,(void*)usr);
+    evnet_channelbind(msgAcceptor->u.channel,_channel_callback,msgD->timeout,(void*)conn);
     
 	msgD->curCon++;
-	DBGPRINT(EDEBUG,("[MSGD] usrAccepted..curCon=%d\r\n",msgD->curCon));
+	DBGPRINT(EDEBUG,("[MSGD] connAccepted..curCon=%d\r\n",msgD->curCon));
     return 0;
 }
 
-void* msgd_start(usr_handle_t handler, pfnUsrClose onClose, unsigned short port, int maxCon, int timeout)
+void* msgd_start(conn_handle_t handler, conn_close_t _close, unsigned short port, int maxCon, int timeout)
 {
 	msgd_t *msgD = (msgd_t*)malloc(sizeof(msgd_t));
 	memset(msgD,0x00,sizeof(msgd_t));
 	msgD->handler = handler;
-	msgD->pfnClose = onClose;
+	msgD->pfnClose = _close;
 	msgD->maxCon = maxCon;
 	msgD->timeout = timeout;
 	msgD->acceptor = evnet_createacceptor(port, 0, NULL, _acceptor_callback, msgD);

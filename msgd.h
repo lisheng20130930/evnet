@@ -13,23 +13,23 @@
 #include "msgparser.h"
 
 
-typedef struct usrBase_s{
-	bool (*send)(struct usrBase_s *usr, unsigned short wMainCmdID, unsigned short wSubCmdID, char* pData, unsigned short wDataSize);
-	void (*close)(struct usrBase_s *usr, int errorCode);
+typedef struct conn_s{
+	bool (*send)(struct conn_s *conn, unsigned short wMainCmdID, unsigned short wSubCmdID, char* pData, unsigned short wDataSize);
+	void (*close)(struct conn_s *conn, int errorCode);
 	unsigned char cbUsrStatus;
 	msgparser_t parser;
 	unsigned int gid; //id OF IT
 	void *c;
-	void *usrdata; //usrdata
+	void *usr; //usr
 	void *msgd;
-}usrBase_t;
+}conn_t;
 
 
-typedef bool (*usr_handle_t)(usrBase_t *usr, unsigned short wMainCmdID, unsigned short wSubCmdID, char *pData, unsigned short wDataSize);
-typedef void (*pfnUsrClose)(usrBase_t *usr);
+typedef bool (*conn_handle_t)(conn_t *conn, unsigned short wMainCmdID, unsigned short wSubCmdID, char *pData, unsigned short wDataSize);
+typedef void (*conn_close_t)(conn_t *conn);
 
 
-void* msgd_start(usr_handle_t handler, pfnUsrClose onClose, unsigned short port, int maxCon, int timeout);
+void* msgd_start(conn_handle_t handler, conn_close_t _close, unsigned short port, int maxCon, int timeout);
 void msgd_stop(void *msgd);
 
 
