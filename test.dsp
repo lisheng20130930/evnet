@@ -65,7 +65,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /GZ /c
-# ADD CPP /nologo /MT /W3 /Gm /GX /ZI /I "../" /I "./" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /D "WIN32_LEAN_AND_MEAN" /D "Z_SOLO" /D "SSL_SUPPORT" /YX /FD /GZ /c /Tp
+# ADD CPP /nologo /MT /W3 /Gm /GX /ZI /I "../" /I "./" /I "../utils" /I "./openssl/win32" /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /D "WIN32_LEAN_AND_MEAN" /D "Z_SOLO" /YX /FD /GZ /c /Tp
 # ADD BASE RSC /l 0x804 /d "_DEBUG"
 # ADD RSC /l 0x804 /d "_DEBUG"
 BSC32=bscmake.exe
@@ -73,7 +73,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /subsystem:console /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ws2_32.lib /nologo /subsystem:console /debug /machine:I386 /out:"test.exe" /pdbtype:sept
+# ADD LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ws2_32.lib ./openssl/win32/libeay32.lib ./openssl/win32/ssleay32.lib /nologo /subsystem:console /debug /machine:I386 /out:"test.exe" /pdbtype:sept
 
 !ENDIF 
 
@@ -84,65 +84,213 @@ LINK32=link.exe
 # Begin Group "Source Files"
 
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
+# Begin Group "utils"
+
+# PROP Default_Filter ""
 # Begin Source File
 
-SOURCE=..\acceptor.c
+SOURCE=..\utils\Base64.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\acceptor.h
+SOURCE=..\utils\Base64.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\aesocket.c
+SOURCE=..\utils\buffer.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\aesocket.h
+SOURCE=..\utils\buffer.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\channel.c
+SOURCE=..\utils\cJSON.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\channel.h
+SOURCE=..\utils\cJSON.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\dataqueue.c
+SOURCE=..\utils\Crc16.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\dataqueue.h
+SOURCE=..\utils\Crc16.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\event.c
+SOURCE=..\utils\Des.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\event.h
+SOURCE=..\utils\Des.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\evfunclib.h
+SOURCE=..\utils\Idmap.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\libnet.c
+SOURCE=..\utils\Idmap.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\libnet.h
+SOURCE=..\utils\libos.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\stdbool.h
+SOURCE=..\utils\libos.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\test.c
+SOURCE=..\utils\listlib.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\log.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\log.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\Md5.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\Md5.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\Rc4.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\Rc4.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\stack.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\stack.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\stdbool.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\timer.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\timer.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\ttlv.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\ttlv.h
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\Xor.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\utils\Xor.h
+# End Source File
+# End Group
+# Begin Source File
+
+SOURCE=.\acceptor.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\acceptor.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\aesocket.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\aesocket.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\channel.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\channel.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\dataqueue.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\dataqueue.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\event.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\event.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\evfunclib.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\httparser.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\httparser.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\httpc.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\httpc.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\httpd.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\httpd.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\libnet.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\libnet.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\stdbool.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\test.c
 # End Source File
 # End Group
 # Begin Group "Header Files"
