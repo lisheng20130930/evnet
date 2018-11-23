@@ -1,7 +1,6 @@
 #include "evfunclib.h"
 #include "stdio.h"
 
-
 static int g_counter = 0;
 
 
