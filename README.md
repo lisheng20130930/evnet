@@ -11,3 +11,4 @@ core evloop is used redis's ae. and i supported the win select and socket for de
 support android ios also now!!!
 
 if you use http module，you should use utils,which is in anthoer git proj.
+https://github.com/lisheng20130930/utils.git
