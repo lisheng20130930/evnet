@@ -1,9 +1,11 @@
 #include "libos.h"
 #include "evfunclib.h"
 #include "httpd.h"
+#include "listlib.h"
 
 
 typedef struct _usr_s{
+	list_head head;  //LISTHEAD
 	void *channel;			// channel
 	void *node;				// 当前的请求
 	void *httpd;
@@ -17,6 +19,7 @@ typedef struct _httpd_s{
 	int maxCon;
 	void *acceptor;
 	int curCon;
+	list_head usr_list; //UsrList
 }httpd_t;
 
 
@@ -216,8 +219,9 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
 		}
 		break;
     case _EVCLOSED:
+		list_del(usr); //Remove
+		httpD->curCon--;
 		_channelClose(httpD,msgChannel->channel);
-        httpD->curCon--;
         DBGPRINT(EDEBUG,("[HTTPD] EVclosed...COUNTER: %d\r\n", httpD->curCon));
         break;
     default:
@@ -247,6 +251,7 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
 	
     evnet_channelbind(msgAcceptor->u.channel, _channel_callback,httpD->timeout,(void*)usr);
     
+	list_add_tail(&httpD->usr_list,usr);
 	httpD->curCon++;
 	DBGPRINT(EDEBUG,("[HTTPD] usrAccepted...dwUsrID=%u COUNTER=%d\r\n", usr->dwUsrID,httpD->curCon));
     return 0;
@@ -257,6 +262,7 @@ void* httpd_start(node_handle_t handler, unsigned short port, int maxCon, int ti
 {
 	httpd_t *httpD = (httpd_t*)malloc(sizeof(httpd_t));
 	memset(httpD,0x00,sizeof(httpd_t));
+	init_list_head(&httpD->usr_list);
 	httpD->handler = handler;
 	httpD->maxCon = maxCon;
 	httpD->timeout = timeout;
@@ -272,6 +278,13 @@ void* httpd_start(node_handle_t handler, unsigned short port, int maxCon, int ti
 void httpd_stop(void *httpd)
 {
 	httpd_t *httpD = (httpd_t*)httpd;
+	list_head *pos=NULL,*_next=NULL;
+	list_for_each_safe(pos,_next,&httpD->usr_list){
+		usr_t *usr = list_entry(pos,usr_t);
+		if(usr->channel){
+			evnet_closechannel(usr->channel,0);
+		}
+	}
 	evnet_acceptorstop(httpD->acceptor);
 	evnet_destroyacceptor(httpD->acceptor);
 	free(httpD);
