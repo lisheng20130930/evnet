@@ -151,7 +151,7 @@ static void node_continue(httpd_t *httpD, node_t *node)
 	DBGPRINT(EDEBUG,("[HTTPD] Continue Node! dwUsrID=%u IP(%s) URL=%s\r\n",((usr_t*)node->usr)->dwUsrID,evnet_channelip(((usr_t*)node->usr)->channel),node->URL));
 	node->status=estatushandle;
 	node->pfnSend = node_send;
-	httpD->handler(node,ENODECONTINUE,0,0);
+	httpD->handler(node,ENODEHANDLE,0,0);
 }
 
 static int _channel_callback(void *pUser, void *msg, unsigned int size)
@@ -202,7 +202,7 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
 			}
 			if(node->status==estatushandle){				
 				DBGPRINT(EDEBUG,("[HTTPD] Continue2 Node! dwUsrID=%u\r\n",usr->dwUsrID));
-				httpD->handler(node,ENODESENT,msgChannel->u.size,0);
+				httpD->handler(node,ENODECONTINUE,msgChannel->u.size,0);
 			}else if(node->status==estatusdone){				
 				DBGPRINT(EDEBUG,("[HTTPD] Finish Node! dwUsrID=%u\r\n",usr->dwUsrID));
 				usr->node = NULL;

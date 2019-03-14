@@ -41,9 +41,9 @@ struct _node_s{
 
 
 enum{
-	ENODECONTINUE = 0,
-	ENODECLEAR = 1,
-	ENODESENT = 2
+	ENODEHANDLE = 0, //бф|идик
+	ENODECLEAR = 1, //??идик
+	ENODECONTINUE = 2 //?имD?
 };
 
 
