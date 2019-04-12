@@ -27,7 +27,7 @@ static int node_c_on_message_begin(http_parser *parser)
 {
     node_t *node = (node_t*)parser->data;    
 	
-	DBGPRINT(EERROR,("[HTTPD] dwUsrID= %d Http-Method=%d\r\n",((usr_t*)node->usr)->dwUsrID,parser->method));
+	DBGPRINT(EDEBUG,("[HTTPD] dwUsrID= %d Http-Method=%d\r\n",((usr_t*)node->usr)->dwUsrID,parser->method));
     if(HTTP_POST!=parser->method&&HTTP_GET!=parser->method){
         return (-1);
     }
@@ -42,11 +42,31 @@ static int node_c_on_url(http_parser *parser, const char *at, int length)
     return 0;
 }
 
+static int node_c_on_header_field(http_parser *parser, const char *at, int length)
+{
+	node_t *node = (node_t*)parser->data;
+	header_t *hd = (header_t*)malloc(sizeof(header_t));
+	memset(hd,0x00,sizeof(header_t));
+	hd->fieldname = cmmn_strndup(at,length);
+	list_add_head(&node->headers,hd);
+	return 0;
+}
+
+static int node_c_on_header_value(http_parser *parser, const char *at, int length)
+{
+	node_t *node = (node_t*)parser->data;
+	header_t *hd = (header_t*)(node->headers.next);
+	if(hd){
+		hd->fieldvalue = cmmn_strndup(at,length);
+	}
+	return 0;
+}
+
 static int node_c_on_body(http_parser *parser, const char *at, int length)
 {
     node_t *node = (node_t*)parser->data;	
     buffer_append(&node->buffer, (char*)at, length); 
-	DBGPRINT(EERROR,("[HTTPD] dwUsrID=%d,Http-Body-Curr-Size=%d\r\n",((usr_t*)node->usr)->dwUsrID,node->buffer.size));
+	DBGPRINT(EDEBUG,("[HTTPD] dwUsrID=%d,Http-Body-Curr-Size=%d\r\n",((usr_t*)node->usr)->dwUsrID,node->buffer.size));
     return 0;
 }
 
@@ -60,13 +80,13 @@ static int node_c_on_message_complete(http_parser *parser)
 static const http_parser_settings c_http_parser_settings = 
 {
     node_c_on_message_begin,
-		node_c_on_url,
-		NULL,
-		NULL,
-		NULL,
-		NULL,
-		node_c_on_body,
-		node_c_on_message_complete,
+	node_c_on_url,
+	NULL,
+	node_c_on_header_field,
+	node_c_on_header_value,
+	NULL,
+	node_c_on_body,
+	node_c_on_message_complete,
 };
 
 static int _node_parser(node_t *node, char *buffer, int len, int *pos)
@@ -93,6 +113,23 @@ static int _node_parser(node_t *node, char *buffer, int len, int *pos)
     return 0;
 }
 
+
+static void node_free(node_t *node)
+{
+	list_head *pos=NULL,*_next=NULL;
+	list_for_each_safe(pos,_next,&node->headers){
+		header_t *hd = list_entry(pos,header_t);
+		free(hd->fieldname);
+		free(hd->fieldvalue);
+		free(hd);
+	}
+	if(node->URL){
+		free(node->URL);
+	}
+	free(node);
+}
+
+
 static node_t* _uncomplete_node(httpd_t *httpD, void* c)
 {
 	usr_t *usr = (usr_t*)evnet_channeluser(c);
@@ -108,6 +145,7 @@ static node_t* _uncomplete_node(httpd_t *httpD, void* c)
 	}
 	node = (node_t*)malloc(sizeof(node_t));
 	memset(node, 0x00, sizeof(node_t));
+	init_list_head(&node->headers);
 	node->usr = usr;
 	http_parser_init(&node->parser, HTTP_REQUEST);
 	buffer_init(&node->buffer);
@@ -121,15 +159,12 @@ static void _channelClose(httpd_t *httpD, void* c)
     usr_t *usr = (usr_t*)evnet_channeluser(c);
     node_t *node = NULL;
 	
-	DBGPRINT(EDEBUG,("[HTTPD] usrClose dwUsrID=%u\r\n",usr->dwUsrID));
+	DBGPRINT(EDEBUG,("[HTTPD] usrClose dwUsrID=%u,node=0x%x\r\n",usr->dwUsrID,usr->node));
 	
 	if(usr->node){
 		node=(node_t*)usr->node;
 		httpD->handler(node,ENODECLEAR,0,0);
-		if(node->URL){
-			free(node->URL);
-		}
-		free(node);
+		node_free(node);
 	}
 	free(usr);    
 }
@@ -145,10 +180,51 @@ static void node_send(node_t *node, char *data, int size, int isLastPacket)
 	node->status = estatusdone;
 }
 
+char* getFiledvalue(node_t *node, char *fieldname)
+{
+	list_head *pos=NULL;
+	list_for_each(pos,&node->headers){
+		header_t *hd = list_entry(pos,header_t);
+		if(!stricmp(hd->fieldname,fieldname)){
+			return hd->fieldvalue;
+		}
+	}
+	return NULL;
+}
+
+char* getRemoteAddr(node_t *node)
+{
+	char *str = getFiledvalue(node, "X-Real-IP");
+	if(!str||strlen(str)==0||!stricmp("unknown",str)){
+		str = getFiledvalue(node, "x-forwarded-for");
+	}
+	if(!str||strlen(str)==0||!stricmp("unknown",str)){
+		str = getFiledvalue(node, "Proxy-Client-IP");
+	}
+	if(!str||strlen(str)==0||!stricmp("unknown",str)){
+		str = getFiledvalue(node, "WL-Proxy-Client-IP");
+	}
+	if(!str||strlen(str)==0||!stricmp("unknown",str)){
+		str = NULL;
+	}
+	
+	static char ip[IPSTRSIZE] = {0};
+	memset(ip,0x00,IPSTRSIZE);
+	
+	if(str){
+		char *pEd = strchr(str,',');
+		size_t len = pEd?pEd-str:strlen(str);
+		memcpy(ip,str,__min(len,IPSTRSIZE-1));
+	}else{
+		strcpy(ip,evnet_channelip(((usr_t*)node->usr)->channel));
+	}
+	
+	return ip;
+}
 
 static void node_continue(httpd_t *httpD, node_t *node)
 {
-	DBGPRINT(EDEBUG,("[HTTPD] Continue Node! dwUsrID=%u IP(%s) URL=%s\r\n",((usr_t*)node->usr)->dwUsrID,evnet_channelip(((usr_t*)node->usr)->channel),node->URL));
+	DBGPRINT(EERROR,("[HTTPD] Continue Node! dwUsrID=%u IP(%s) URL=%s\r\n",((usr_t*)node->usr)->dwUsrID,getRemoteAddr(node),node->URL));
 	node->status=estatushandle;
 	node->pfnSend = node_send;
 	httpD->handler(node,ENODEHANDLE,0,0);
@@ -162,7 +238,7 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
 	
     switch(msgChannel->identify){
     case _EVDATA:
-		DBGPRINT(EERROR,("[HTTPD] __EVDATA-SIZE=%d\r\n",dataqueue_datasize(msgChannel->u.dataqueue)));
+		DBGPRINT(EDEBUG,("[HTTPD] __EVDATA-SIZE=%d\r\n",dataqueue_datasize(msgChannel->u.dataqueue)));
         while(0<dataqueue_datasize(msgChannel->u.dataqueue)){
 			node_t *node = _uncomplete_node(httpD,msgChannel->channel);
 			// cannot find uncomplete node
@@ -175,7 +251,7 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
             dataqueue_next_data(msgChannel->u.dataqueue, &buffer, &len);
             if(0==_node_parser(node, buffer, len, &pos)){					
 				if(node->status!=estatnodeeady){
-					DBGPRINT(EDEBUG,("[HTTPD] Error dwUsrID=%d\r\n",usr->dwUsrID));
+					DBGPRINT(EERROR,("[HTTPD] Error dwUsrID=%d\r\n",usr->dwUsrID));
 					evnet_closechannel(msgChannel->channel,0);
 					return 0;
 				}
@@ -197,20 +273,17 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
 			node->sentsize += msgChannel->u.size; // sent
 			DBGPRINT(EDEBUG,("[HTTPD] [sendsize=%u,sentsize=%d], dwUsrID=%u\r\n", node->sendsize,node->sentsize,usr->dwUsrID));
 			if(node->sendsize!=node->sentsize){
-				DBGPRINT(EDEBUG,("[HTTPD] Waiting SEnd [sendsize=%u,sentsize=%d], dwUsrID=%u\r\n", node->sendsize,node->sentsize,usr->dwUsrID));
+				DBGPRINT(EMSG,("[HTTPD] Waiting SEnd [sendsize=%u,sentsize=%d], dwUsrID=%u\r\n", node->sendsize,node->sentsize,usr->dwUsrID));
 				break;
 			}
 			if(node->status==estatushandle){				
 				DBGPRINT(EDEBUG,("[HTTPD] Continue2 Node! dwUsrID=%u\r\n",usr->dwUsrID));
 				httpD->handler(node,ENODECONTINUE,msgChannel->u.size,0);
 			}else if(node->status==estatusdone){				
-				DBGPRINT(EDEBUG,("[HTTPD] Finish Node! dwUsrID=%u\r\n",usr->dwUsrID));
+				DBGPRINT(EMSG,("[HTTPD] Finish Node! dwUsrID=%u\r\n",usr->dwUsrID));
 				usr->node = NULL;
 				httpD->handler(node,ENODECLEAR,0,0);
-				if(node->URL){
-					free(node->URL);
-				}
-				free(node);
+				node_free(node);
 			}else{
 				DBGPRINT(EERROR,("[HTTPD] _EVSENT ERROR!! (badSTatus=%d) dwUsrID=%u\r\n",node->status,usr->dwUsrID));
 			}
@@ -222,7 +295,7 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
 		list_del(usr); //Remove
 		httpD->curCon--;
 		_channelClose(httpD,msgChannel->channel);
-        DBGPRINT(EDEBUG,("[HTTPD] EVclosed...COUNTER: %d\r\n", httpD->curCon));
+        DBGPRINT(EMSG,("[HTTPD] EVclosed...COUNTER: %d\r\n", httpD->curCon));
         break;
     default:
         break;
@@ -253,7 +326,7 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
     
 	list_add_tail(&httpD->usr_list,usr);
 	httpD->curCon++;
-	DBGPRINT(EDEBUG,("[HTTPD] usrAccepted...dwUsrID=%u COUNTER=%d\r\n", usr->dwUsrID,httpD->curCon));
+	DBGPRINT(EMSG,("[HTTPD] usrAccepted...dwUsrID=%u COUNTER=%d\r\n", usr->dwUsrID,httpD->curCon));
     return 0;
 }
 
