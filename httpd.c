@@ -15,6 +15,7 @@ typedef struct _usr_s{
 
 typedef struct _httpd_s{
 	node_handle_t handler;
+	int nodesize;
 	int timeout;
 	int maxCon;
 	void *acceptor;
@@ -25,7 +26,7 @@ typedef struct _httpd_s{
 
 static int node_c_on_message_begin(http_parser *parser)
 {
-    node_t *node = (node_t*)parser->data;    
+    struct node_s *node = (struct node_s*)parser->data;    
 	
 	DBGPRINT(EDEBUG,("[HTTPD] dwUsrID= %d Http-Method=%d\r\n",((usr_t*)node->usr)->dwUsrID,parser->method));
     if(HTTP_POST!=parser->method&&HTTP_GET!=parser->method){
@@ -37,14 +38,14 @@ static int node_c_on_message_begin(http_parser *parser)
 
 static int node_c_on_url(http_parser *parser, const char *at, int length)
 {
-    node_t *node = (node_t*)parser->data;    
+    struct node_s *node = (struct node_s*)parser->data;    
 	node->URL = cmmn_strndup(at, length);
     return 0;
 }
 
 static int node_c_on_header_field(http_parser *parser, const char *at, int length)
 {
-	node_t *node = (node_t*)parser->data;
+	struct node_s *node = (struct node_s*)parser->data;
 	header_t *hd = (header_t*)malloc(sizeof(header_t));
 	memset(hd,0x00,sizeof(header_t));
 	hd->fieldname = cmmn_strndup(at,length);
@@ -54,7 +55,7 @@ static int node_c_on_header_field(http_parser *parser, const char *at, int lengt
 
 static int node_c_on_header_value(http_parser *parser, const char *at, int length)
 {
-	node_t *node = (node_t*)parser->data;
+	struct node_s *node = (struct node_s*)parser->data;
 	header_t *hd = (header_t*)(node->headers.next);
 	if(hd){
 		hd->fieldvalue = cmmn_strndup(at,length);
@@ -64,7 +65,7 @@ static int node_c_on_header_value(http_parser *parser, const char *at, int lengt
 
 static int node_c_on_body(http_parser *parser, const char *at, int length)
 {
-    node_t *node = (node_t*)parser->data;	
+    struct node_s *node = (struct node_s*)parser->data;	
     buffer_append(&node->buffer, (char*)at, length); 
 	DBGPRINT(EDEBUG,("[HTTPD] dwUsrID=%d,Http-Body-Curr-Size=%d\r\n",((usr_t*)node->usr)->dwUsrID,node->buffer.size));
     return 0;
@@ -72,7 +73,7 @@ static int node_c_on_body(http_parser *parser, const char *at, int length)
 
 static int node_c_on_message_complete(http_parser *parser)
 {
-    node_t *node = (node_t*)parser->data;
+    struct node_s *node = (struct node_s*)parser->data;
     node->status = estatnodeeady;    
     return 0;
 }
@@ -89,7 +90,7 @@ static const http_parser_settings c_http_parser_settings =
 	node_c_on_message_complete,
 };
 
-static int _node_parser(node_t *node, char *buffer, int len, int *pos)
+static int _node_parser(struct node_s *node, char *buffer, int len, int *pos)
 {
     int usedlen = 0;    
     /* parser */
@@ -114,7 +115,7 @@ static int _node_parser(node_t *node, char *buffer, int len, int *pos)
 }
 
 
-static void node_free(node_t *node)
+static void node_free(struct node_s *node)
 {
 	list_head *pos=NULL,*_next=NULL;
 	list_for_each_safe(pos,_next,&node->headers){
@@ -130,21 +131,21 @@ static void node_free(node_t *node)
 }
 
 
-static node_t* _uncomplete_node(httpd_t *httpD, void* c)
+static struct node_s* _uncomplete_node(httpd_t *httpD, void* c)
 {
 	usr_t *usr = (usr_t*)evnet_channeluser(c);
-    node_t *node = NULL;
+    struct node_s *node = NULL;
 	
 	if(usr->node){
-		node = (node_t*)usr->node;
+		node = (struct node_s*)usr->node;
 		if(node->status==estatusnone){
 			return node;
 		}
 		DBGPRINT(EERROR,("[HTTPD] already Has node, Error!\r\n"));	
 		return NULL;
 	}
-	node = (node_t*)malloc(sizeof(node_t));
-	memset(node, 0x00, sizeof(node_t));
+	node = (struct node_s*)malloc(httpD->nodesize);
+	memset(node, 0x00, httpD->nodesize);
 	init_list_head(&node->headers);
 	node->usr = usr;
 	http_parser_init(&node->parser, HTTP_REQUEST);
@@ -164,13 +165,14 @@ static void _channelClose(httpd_t *httpD, void* c)
 	if(usr->node){
 		node=(node_t*)usr->node;
 		httpD->handler(node,ENODECLEAR,0,0);
-		node_free(node);
+		node_free((struct node_s*)node);
 	}
 	free(usr);    
 }
 
-static void node_send(node_t *node, char *data, int size, int isLastPacket)
+static void node_send(node_t *_node, char *data, int size, int isLastPacket)
 {
+	struct node_s *node = (struct node_s*)_node;
 	usr_t *usr = (usr_t*)node->usr;	
 	evnet_channelsend(usr->channel, data, size);
 	node->sendsize += size;
@@ -180,8 +182,9 @@ static void node_send(node_t *node, char *data, int size, int isLastPacket)
 	node->status = estatusdone;
 }
 
-char* getFiledvalue(node_t *node, char *fieldname)
+char* getFiledvalue(node_t *_node, char *fieldname)
 {
+	struct node_s *node = (struct node_s*)_node;
 	list_head *pos=NULL;
 	list_for_each(pos,&node->headers){
 		header_t *hd = list_entry(pos,header_t);
@@ -216,18 +219,18 @@ char* getRemoteAddr(node_t *node)
 		size_t len = pEd?pEd-str:strlen(str);
 		memcpy(ip,str,__min(len,IPSTRSIZE-1));
 	}else{
-		strcpy(ip,evnet_channelip(((usr_t*)node->usr)->channel));
+		strcpy(ip,evnet_channelip(((usr_t*)((struct node_s*)node)->usr)->channel));
 	}
 	
 	return ip;
 }
 
-static void node_continue(httpd_t *httpD, node_t *node)
+static void node_continue(httpd_t *httpD, struct node_s *node)
 {
-	DBGPRINT(EERROR,("[HTTPD] Continue Node! dwUsrID=%u IP(%s) URL=%s\r\n",((usr_t*)node->usr)->dwUsrID,getRemoteAddr(node),node->URL));
+	DBGPRINT(EERROR,("[HTTPD] Continue Node! dwUsrID=%u IP(%s) URL=%s\r\n",((usr_t*)node->usr)->dwUsrID,getRemoteAddr((node_t*)node),node->URL));
 	node->status=estatushandle;
 	node->pfnSend = node_send;
-	httpD->handler(node,ENODEHANDLE,0,0);
+	httpD->handler((node_t*)node,ENODEHANDLE,0,0);
 }
 
 static int _channel_callback(void *pUser, void *msg, unsigned int size)
@@ -240,7 +243,7 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
     case _EVDATA:
 		DBGPRINT(EDEBUG,("[HTTPD] __EVDATA-SIZE=%d\r\n",dataqueue_datasize(msgChannel->u.dataqueue)));
         while(0<dataqueue_datasize(msgChannel->u.dataqueue)){
-			node_t *node = _uncomplete_node(httpD,msgChannel->channel);
+			struct node_s *node = _uncomplete_node(httpD,msgChannel->channel);
 			// cannot find uncomplete node
 			if(!node){
 				return 0;
@@ -269,7 +272,7 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
         break;
 	case _EVSENT:
 		if(NULL!=usr->node){
-			node_t *node = (node_t*)usr->node;
+			struct node_s *node = (struct node_s*)usr->node;
 			node->sentsize += msgChannel->u.size; // sent
 			DBGPRINT(EDEBUG,("[HTTPD] [sendsize=%u,sentsize=%d], dwUsrID=%u\r\n", node->sendsize,node->sentsize,usr->dwUsrID));
 			if(node->sendsize!=node->sentsize){
@@ -278,11 +281,11 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
 			}
 			if(node->status==estatushandle){				
 				DBGPRINT(EDEBUG,("[HTTPD] Continue2 Node! dwUsrID=%u\r\n",usr->dwUsrID));
-				httpD->handler(node,ENODECONTINUE,msgChannel->u.size,0);
+				httpD->handler((node_t*)node,ENODECONTINUE,msgChannel->u.size,0);
 			}else if(node->status==estatusdone){				
 				DBGPRINT(EMSG,("[HTTPD] Finish Node! dwUsrID=%u\r\n",usr->dwUsrID));
 				usr->node = NULL;
-				httpD->handler(node,ENODECLEAR,0,0);
+				httpD->handler((node_t*)node,ENODECLEAR,0,0);
 				node_free(node);
 			}else{
 				DBGPRINT(EERROR,("[HTTPD] _EVSENT ERROR!! (badSTatus=%d) dwUsrID=%u\r\n",node->status,usr->dwUsrID));
@@ -331,7 +334,7 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
 }
 
 
-void* httpd_start(node_handle_t handler, unsigned short port, int maxCon, int timeout, int secrity, char *cert)
+void* httpd_start(node_handle_t handler, int nodesize, unsigned short port, int maxCon, int timeout, int secrity, char *cert)
 {
 	httpd_t *httpD = (httpd_t*)malloc(sizeof(httpd_t));
 	memset(httpD,0x00,sizeof(httpd_t));
@@ -339,6 +342,7 @@ void* httpd_start(node_handle_t handler, unsigned short port, int maxCon, int ti
 	httpD->handler = handler;
 	httpD->maxCon = maxCon;
 	httpD->timeout = timeout;
+	httpD->nodesize = nodesize;
 	httpD->acceptor = evnet_createacceptor(port, secrity, cert, _acceptor_callback, httpD);
     if(!httpD->acceptor){
 		free(httpD);

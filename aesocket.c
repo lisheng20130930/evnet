@@ -337,6 +337,9 @@ void aehostbyname(char *name, char *ipStr, int maxlen)
 {
     struct addrinfo *result = NULL;
     getaddrinfo(name, NULL, NULL, &result);
+	if(!result){ //NOT GET
+		return;
+	}
     const struct sockaddr *sa = result->ai_addr;
     switch(sa->sa_family) {
         case AF_INET://ipv4
