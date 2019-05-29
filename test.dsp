@@ -173,14 +173,6 @@ SOURCE=..\utils\Rc4.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\utils\stack.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\utils\stack.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\utils\stdbool.h
 # End Source File
 # Begin Source File

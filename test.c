@@ -103,7 +103,10 @@ int main(int argv, char **argc)
 static int stop = 0;
 static void handler_cb(void *pUsr, coutputer_t *output, int errorCode)
 {
-	printf(output->buffer.data);
+	if(output->buffer.data)
+		printf(output->buffer.data);
+	else
+		printf("no data");
 	stop = true;
 }
 
@@ -152,3 +155,4 @@ int main(int argv, char **argc)
 
 	return 0;
 }
+
