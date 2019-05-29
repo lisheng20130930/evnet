@@ -142,7 +142,7 @@ int main(int argv, char **argc)
 	evnet_init(2000);
 
 	httpc_t httpc = {0};
-	httpc_load(&httpc,"https://prod.gxb.io/crawler/data/rawdata/02925012020008eDraMSP9uuq64OW63I?sign=78dc0f643c3407534a8a14af5fd04664&timestamp=1556523721939&appId=gxb8d8d4b7b88cbaa18",
+	httpc_load(&httpc,"https://www.baidu.com/",
 		HTTP_GET,8,NULL,0,EOUT_BUFF,NULL,handler_cb,NULL);
 	while(!stop){
         evnet_loop(0);
