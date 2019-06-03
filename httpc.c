@@ -236,9 +236,12 @@ bool httpc_load(httpc_t *httpC, char *szURL, int iMethod, int timeout, char *psz
 	return bRet;
 }
 
-void httpc_clear(httpc_t *httpC)
+void httpc_clear(httpc_t *httpC, bool bNotify)
 {
-	if(httpC->c){
+	if(httpC->c){ // channale check	
+		if(!bNotify&&httpC->output){ // NOT NOTIFY BACK
+			((soutputer_t*)httpC->output)->pfn = NULL;
+		}
 		evnet_closechannel(httpC->c,0);
 	}
 }

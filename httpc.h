@@ -42,7 +42,7 @@ typedef struct _httpc_s{
 
 
 bool httpc_load(httpc_t *c, char *szURL, int iMethod, int timeout, char *pszPost, int postLen, int outType, char *pathName, pfnHalder_t pfn, void *pUsr);
-void httpc_clear(httpc_t *c);
+void httpc_clear(httpc_t *c, bool bNotify);
 int  httpc_percent(httpc_t *c);
 
 
