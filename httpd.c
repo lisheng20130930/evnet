@@ -329,7 +329,7 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
     
 	list_add_tail(&httpD->usr_list,usr);
 	httpD->curCon++;
-	DBGPRINT(EMSG,("[HTTPD] usrAccepted...dwUsrID=%u COUNTER=%d\r\n", usr->dwUsrID,httpD->curCon));
+	DBGPRINT(EMSG,("[HTTPD] usrAccepted...dwUsrID=%u, ip(in)=%s, COUNTER=%d\r\n", usr->dwUsrID, evnet_channelip(usr->channel),httpD->curCon));
     return 0;
 }
 
