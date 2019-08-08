@@ -32,7 +32,7 @@ static int _channel_callback(void *pUsr, void *msg, unsigned int size)
 	
     switch(msgChannel->identify){
     case _EVDATA:
-		DBGPRINT(EERROR,("[MSGD] dwUsrID = %u, __EVDATA-SIZE=%d\r\n", usr->gid, dataqueue_datasize(msgChannel->u.dataqueue)));
+		DBGPRINT(EERROR,("[Trace@MSGD] dwUsrID = %u, __EVDATA-SIZE=%d\r\n", usr->gid, dataqueue_datasize(msgChannel->u.dataqueue)));
 		if(!msgparser_parser(&usr->parser, msgChannel->u.dataqueue, msgd_continte, usr)){
 			evnet_closechannel(msgChannel->channel,0);
 		}	
@@ -42,7 +42,7 @@ static int _channel_callback(void *pUsr, void *msg, unsigned int size)
 			msgD->pfnClose((usr_t*)usr);
 		}
 		msgD->curCon--;
-		DBGPRINT(EERROR,("[MSGD] EVclosed (usr-gid=%u)...curCon: %d\r\n",usr->gid,msgD->curCon));
+		DBGPRINT(EERROR,("[Trace@MSGD] EVclosed (usr-gid=%u)...curCon: %d\r\n",usr->gid,msgD->curCon));
 		free(usr);
         break;
     default:
@@ -80,7 +80,7 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
 	struct _usr_s *usr = NULL;
 	
 	if(msgD->curCon>=msgD->maxCon){
-		DBGPRINT(EERROR,("[MSGD] Too much Connect curCon=%d\r\n",msgD->curCon));
+		DBGPRINT(EERROR,("[Trace@MSGD] Too much Connect curCon=%d\r\n",msgD->curCon));
 		evnet_closechannel(msgAcceptor->u.channel,0);
 		return 0;
 	}
@@ -96,7 +96,7 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
     evnet_channelbind(msgAcceptor->u.channel,_channel_callback,msgD->timeout,(void*)usr);
     
 	msgD->curCon++;
-	DBGPRINT(EDEBUG,("[MSGD] usrAccepted..curCon=%d\r\n",msgD->curCon));
+	DBGPRINT(EDEBUG,("[Trace@MSGD] usrAccepted..curCon=%d\r\n",msgD->curCon));
     return 0;
 }
 

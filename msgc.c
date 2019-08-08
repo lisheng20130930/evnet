@@ -20,7 +20,7 @@ static int _channel_callback(void *pUsr, void *msg, unsigned int size)
     switch(msgChannel->identify){
     case _EVDATA:
 		{
-			DBGPRINT(EERROR,("[MSGC] __EVDATA-SIZE=%d\r\n",dataqueue_datasize(msgChannel->u.dataqueue)));
+			DBGPRINT(EERROR,("[Trace@MSGC] __EVDATA-SIZE=%d\r\n",dataqueue_datasize(msgChannel->u.dataqueue)));
 			if(!msgparser_parser(&msgC->parser, msgChannel->u.dataqueue, msgc_continte, msgC)){
 				evnet_closechannel(msgChannel->channel,0);
 			}
@@ -30,7 +30,7 @@ static int _channel_callback(void *pUsr, void *msg, unsigned int size)
 		if(msgC->pfnclose){
 			msgC->pfnclose(msgC);
 		}
-		DBGPRINT(EERROR,("[MSGC] EVclosed.\r\n"));
+		DBGPRINT(EERROR,("[Trace@MSGC] EVclosed.\r\n"));
         break;
     default:
         break;

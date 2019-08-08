@@ -185,14 +185,6 @@ SOURCE=..\utils\timer.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\utils\ttlv.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\utils\ttlv.h
-# End Source File
-# Begin Source File
-
 SOURCE=..\utils\Xor.c
 # End Source File
 # Begin Source File

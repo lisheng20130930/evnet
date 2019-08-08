@@ -33,7 +33,7 @@ static int _command(msgparser_t *coder, char **ppHead, dataqueue_t *in_dataqueue
 			
             /* check version */
             if(coder->stCmdHead.CmdInfo.cbVersion!=SOCKET_VER){    
-				DBGPRINT(EERROR, ("[CCODER] Bad Socket Ver(%d)\r\n",coder->stCmdHead.CmdInfo.cbVersion));
+				DBGPRINT(EERROR, ("[Trace@CCODER] Bad Socket Ver(%d)\r\n",coder->stCmdHead.CmdInfo.cbVersion));
                 erroroccours = true;
                 break;
             }
@@ -44,7 +44,7 @@ static int _command(msgparser_t *coder, char **ppHead, dataqueue_t *in_dataqueue
         else {
             /* package is too large */
             if(coder->stCmdHead.CmdInfo.wPacketSize>SOCKET_PACKET){
-				DBGPRINT(EERROR, ("[CCODER] Bad wPacketSize(%d)\r\n",coder->stCmdHead.CmdInfo.wPacketSize));
+				DBGPRINT(EERROR, ("[Trace@CCODER] Bad wPacketSize(%d)\r\n",coder->stCmdHead.CmdInfo.wPacketSize));
                 erroroccours = true;
                 break;
             }
@@ -89,7 +89,7 @@ bool msgparser_parser(msgparser_t *coder, dataqueue_t *dataqueue, msg_continte_t
 		unsigned short wPacketSize = 0;
 		
 		if(!_command(coder, (char**)&cbDataBuffer, dataqueue, &wPacketSize)){
-			DBGPRINT(EERROR, ("[CCODER] obtain client command failure\r\n"));
+			DBGPRINT(EERROR, ("[Trace@CCODER] obtain client command failure\r\n"));
 			bRet = false;
 			break;
 		}
@@ -100,7 +100,7 @@ bool msgparser_parser(msgparser_t *coder, dataqueue_t *dataqueue, msg_continte_t
 				
 		if (wPacketSize < sizeof(CMD_Head)) {
 			bRet = false;
-			DBGPRINT(EERROR, ("[CCODER] badPacket\r\n"));
+			DBGPRINT(EERROR, ("[Trace@CCODER] badPacket\r\n"));
 			break;
 		}
 		

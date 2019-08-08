@@ -6,7 +6,7 @@
 #include "sys/time.h"
 #endif
 
-#if(defined(WIN32)||defined(__IOS__)||defined(__ANDROID__))
+#if(defined(WIN32)||defined(__IOS__)||defined(__MAC__)||defined(__ANDROID__))
 typedef struct aeApiState {
     fd_set rfds, wfds;
     /* We need to have a copy of the fd sets as it's not safe to reuse
