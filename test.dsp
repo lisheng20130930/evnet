@@ -306,7 +306,23 @@ SOURCE=.\msgpraser.c
 # End Source File
 # Begin Source File
 
+SOURCE=.\muparser.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\muparser.h
+# End Source File
+# Begin Source File
+
 SOURCE=.\test.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\upload.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\upload.h
 # End Source File
 # End Group
 # Begin Group "Header Files"

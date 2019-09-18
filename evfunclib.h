@@ -59,6 +59,7 @@ int evnet_init(int size);
 void evnet_uint();
 void evnet_loop(unsigned int loops);
 unsigned short evnet_channelport(void* c);
+int evnet_size();
 
 
 #endif

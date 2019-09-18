@@ -99,3 +99,11 @@ void evnet_loop(unsigned int loops)
     }    
     channel_crond(loops);
 }
+
+int evnet_size()
+{
+    if(NULL == g_libnet.evLoop){
+        return 0;
+    }
+    return g_libnet.evLoop->setsize;
+}

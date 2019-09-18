@@ -1,11 +1,12 @@
 #include "libos.h"
 #include "evfunclib.h"
-#include "httpd.h"
 #include "listlib.h"
+#include "httpd.h"
+#include "upload.h"
 
 
 typedef struct _usr_s{
-	list_head head;  //LISTHEAD
+	struct list_head head;  //LISTHEAD
 	void *channel;			// channel
 	void *node;				// 当前的请求
 	void *httpd;
@@ -17,10 +18,9 @@ typedef struct _httpd_s{
 	node_handle_t handler;
 	int nodesize;
 	int timeout;
-	int maxCon;
 	void *acceptor;
 	int curCon;
-	list_head usr_list; //UsrList
+	struct list_head usr_list; //UsrList
 }httpd_t;
 
 
@@ -41,6 +41,12 @@ static int node_c_on_url(http_parser *parser, const char *at, int length)
     struct node_s *node = (struct node_s*)parser->data;    
 	node->URL = cmmn_strndup(at, length);
 	DBGPRINT(EDEBUG,("[Trace@HTTPD] onURL=%s\r\n",node->URL));
+	/* simple file upload (path==upload) */
+	if(upload_checkURL(node)){
+		node->IsFileUpload = true;
+	}else{
+		node->IsFileUpload = false;
+	}
     return 0;
 }
 
@@ -50,26 +56,43 @@ static int node_c_on_header_field(http_parser *parser, const char *at, int lengt
 	header_t *hd = (header_t*)malloc(sizeof(header_t));
 	memset(hd,0x00,sizeof(header_t));
 	hd->fieldname = cmmn_strndup(at,length);
-	list_add_head(&node->headers,hd);
+	list_add(&hd->hd,&node->headers);
 	return 0;
 }
 
 static int node_c_on_header_value(http_parser *parser, const char *at, int length)
 {
 	struct node_s *node = (struct node_s*)parser->data;
-	header_t *hd = (header_t*)(node->headers.next);
+	header_t *hd = list_entry(node->headers.next,header_t,hd);
 	if(hd){
 		hd->fieldvalue = cmmn_strndup(at,length);
 	}
 	return 0;
 }
 
+static int node_c_on_headers_complete(http_parser *parser)
+{
+	struct node_s *node = (struct node_s*)parser->data;
+	if(node->IsFileUpload&&!upload_handleHeader(node)){
+		DBGPRINT(EERROR,("[Trace@ThttpD] upload_handleHeader Failed\r\n"));
+		return (-1);
+	}	
+	return 0;
+}
+
 static int node_c_on_body(http_parser *parser, const char *at, int length)
 {
-    struct node_s *node = (struct node_s*)parser->data;	
-    buffer_append(&node->buffer, (char*)at, length); 
-	DBGPRINT(EDEBUG,("[Trace@HTTPD] dwUsrID=%d,Http-Body-Curr-Size=%d\r\n",((usr_t*)node->usr)->dwUsrID,node->buffer.size));
-    return 0;
+    struct node_s *node = (struct node_s*)parser->data;    
+	if(node->IsFileUpload){
+		if(length != upload_bodyContinue(node, (char*)at, length)){
+			DBGPRINT(EERROR,("[Trace@ThttpD] upload_bodyContinue Failed\r\n"));
+			return (-1);
+		}
+	}else{
+		buffer_append(&node->req.buffer, (char*)at, length); 
+		DBGPRINT(EDEBUG,("[Trace@ThttpD] dwUsrID=%d,Http-Body-Curr-Size=%d\r\n",((usr_t*)node->usr)->dwUsrID,node->req.buffer.size));
+	}    	
+	return 0;
 }
 
 static int node_c_on_message_complete(http_parser *parser)
@@ -86,7 +109,7 @@ static const http_parser_settings c_http_parser_settings =
 	NULL,
 	node_c_on_header_field,
 	node_c_on_header_value,
-	NULL,
+	node_c_on_headers_complete,
 	node_c_on_body,
 	node_c_on_message_complete,
 };
@@ -111,16 +134,16 @@ static int _node_parser(struct node_s *node, char *buffer, int len, int *pos)
         return (-1);
     }
 	
-	DBGPRINT(EERROR,("[Trace@HTTPD] _node_parser Failure!!!!\r\n"));	
+	DBGPRINT(EERROR,("[Trace@ThttpD] _node_parser Failure!!!!\r\n"));	
     return 0;
 }
 
 
 static void node_free(struct node_s *node)
 {
-	list_head *pos=NULL,*_next=NULL;
+	struct list_head *pos=NULL,*_next=NULL;
 	list_for_each_safe(pos,_next,&node->headers){
-		header_t *hd = list_entry(pos,header_t);
+		header_t *hd = list_entry(pos,header_t,hd);
 		free(hd->fieldname);
 		free(hd->fieldvalue);
 		free(hd);
@@ -142,15 +165,15 @@ static struct node_s* _uncomplete_node(httpd_t *httpD, void* c)
 		if(node->status==estatusnone){
 			return node;
 		}
-		DBGPRINT(EERROR,("[Trace@HTTPD] already Has node, Error!\r\n"));	
+		DBGPRINT(EERROR,("[Trace@ThttpD] already Has node, Error!\r\n"));	
 		return NULL;
 	}
 	node = (struct node_s*)malloc(httpD->nodesize);
 	memset(node, 0x00, httpD->nodesize);
-	init_list_head(&node->headers);
+	INIT_LIST_HEAD(&node->headers);
 	node->usr = usr;
 	http_parser_init(&node->parser, HTTP_REQUEST);
-	buffer_init(&node->buffer);
+	buffer_init(&node->req.buffer);
 	
 	usr->node = node;
     return node;
@@ -161,7 +184,7 @@ static void _channelClose(httpd_t *httpD, void* c)
     usr_t *usr = (usr_t*)evnet_channeluser(c);
     node_t *node = NULL;
 	
-	DBGPRINT(EDEBUG,("[Trace@HTTPD] usrClose dwUsrID=%u,node=0x%x\r\n",usr->dwUsrID,usr->node));
+	DBGPRINT(EDEBUG,("[Trace@ThttpD] usrClose dwUsrID=%u,node=0x%x\r\n",usr->dwUsrID,usr->node));
 	
 	if(usr->node){
 		node=(node_t*)usr->node;
@@ -186,9 +209,9 @@ static void node_send(node_t *_node, char *data, int size, int isLastPacket)
 char* getFiledvalue(node_t *_node, char *fieldname)
 {
 	struct node_s *node = (struct node_s*)_node;
-	list_head *pos=NULL;
+	struct list_head *pos=NULL;
 	list_for_each(pos,&node->headers){
-		header_t *hd = list_entry(pos,header_t);
+		header_t *hd = list_entry(pos,header_t,hd);
 		if(!stricmp(hd->fieldname,fieldname)){
 			return hd->fieldvalue;
 		}
@@ -228,8 +251,8 @@ char* getRemoteAddr(node_t *node)
 
 static void node_continue(httpd_t *httpD, struct node_s *node)
 {
-	DBGPRINT(EERROR,("[Trace@HTTPD] Continue Node! dwUsrID=%u URL=%s\r\n",((usr_t*)node->usr)->dwUsrID,node->URL));
-	DBGPRINT(EERROR,("[Trace@HTTPD] IP(%s)\r\n",getRemoteAddr((node_t*)node)));
+	DBGPRINT(EERROR,("[Trace@ThttpD] Continue Node! dwUsrID=%u URL=%s\r\n",((usr_t*)node->usr)->dwUsrID,node->URL));
+	DBGPRINT(EERROR,("[Trace@ThttpD] IP(%s)\r\n",getRemoteAddr((node_t*)node)));
 	node->status=estatushandle;
 	node->pfnSend = node_send;
 	httpD->handler((node_t*)node,ENODEHANDLE,0,0);
@@ -296,7 +319,7 @@ static int _channel_callback(void *pUser, void *msg, unsigned int size)
 		}
 		break;
     case _EVCLOSED:
-		list_del(usr); //Remove
+		list_del(&usr->head); //Remove
 		httpD->curCon--;
 		_channelClose(httpD,msgChannel->channel);
         DBGPRINT(EMSG,("[Trace@HTTPD] EVclosed...COUNTER: %d\r\n", httpD->curCon));
@@ -314,7 +337,7 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
 	static int g_ID = 0;
 	usr_t *usr = NULL;
 	
-	if(httpD->curCon>=httpD->maxCon){
+	if(httpD->curCon>=evnet_size()){
 		DBGPRINT(EERROR,("[Trace@HTTPD] Too much Connect curCon=%d\r\n",httpD->curCon));
 		evnet_closechannel(msgAcceptor->u.channel,0);
 		return 0;
@@ -328,20 +351,19 @@ static int _acceptor_callback(void *pUser, void *msg, unsigned int size)
 	
     evnet_channelbind(msgAcceptor->u.channel, _channel_callback,httpD->timeout,(void*)usr);
     
-	list_add_tail(&httpD->usr_list,usr);
+	list_add_tail(&usr->head,&httpD->usr_list);
 	httpD->curCon++;
 	DBGPRINT(EMSG,("[Trace@HTTPD] usrAccepted...dwUsrID=%u, ip(in)=%s, COUNTER=%d\r\n", usr->dwUsrID, evnet_channelip(usr->channel),httpD->curCon));
     return 0;
 }
 
 
-void* httpd_start(node_handle_t handler, int nodesize, unsigned short port, int maxCon, int timeout, int secrity, char *cert)
+void* httpd_start(node_handle_t handler, int nodesize, unsigned short port, int timeout, int secrity, char *cert)
 {
 	httpd_t *httpD = (httpd_t*)malloc(sizeof(httpd_t));
 	memset(httpD,0x00,sizeof(httpd_t));
-	init_list_head(&httpD->usr_list);
+	INIT_LIST_HEAD(&httpD->usr_list);
 	httpD->handler = handler;
-	httpD->maxCon = maxCon;
 	httpD->timeout = timeout;
 	httpD->nodesize = nodesize;
 	httpD->acceptor = evnet_createacceptor(port, secrity, cert, _acceptor_callback, httpD);
@@ -356,9 +378,9 @@ void* httpd_start(node_handle_t handler, int nodesize, unsigned short port, int 
 void httpd_stop(void *httpd)
 {
 	httpd_t *httpD = (httpd_t*)httpd;
-	list_head *pos=NULL,*_next=NULL;
+	struct list_head *pos=NULL,*_next=NULL;
 	list_for_each_safe(pos,_next,&httpD->usr_list){
-		usr_t *usr = list_entry(pos,usr_t);
+		usr_t *usr = list_entry(pos,usr_t,head);
 		if(usr->channel){
 			evnet_closechannel(usr->channel,0);
 		}
