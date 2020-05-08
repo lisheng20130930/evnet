@@ -181,7 +181,7 @@ static bool httpc_request(httpc_t *httpC, char *pszURL, char *postData, int post
 	//check same ip and port
 	void *c = httpC->c;
 	httpC->c = NULL;
-	if(NULL!=c&&(!strcmp(ipStr,evnet_channelip(c))||port!=evnet_channelport(c))){
+	if(NULL!=c&&(strcmp(ipStr,evnet_channelip(c))||port!=evnet_channelport(c))){
 		evnet_closechannel(c,0);
 		c = NULL;
 	}
