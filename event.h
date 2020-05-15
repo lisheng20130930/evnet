@@ -27,6 +27,7 @@ typedef struct aeFiredEvent {
 typedef struct aeEventLoop {
     int maxfd;   /* highest file descriptor currently registered */
     int setsize; /* max number of file descriptors tracked */
+    int cycle;  /* ms timeout per loop */
     unsigned int lastTime;     /* Used to detect system clock skew */
     aeFileEvent *events; /* Registered events */
     aeFiredEvent *fired; /* Fired events */    
@@ -34,7 +35,7 @@ typedef struct aeEventLoop {
 }aeEventLoop;
 
 
-aeEventLoop *aeCreateEventLoop(int setsize);
+aeEventLoop *aeCreateEventLoop(int setsize,int cycle);
 void aeDeleteEventLoop(aeEventLoop *eventLoop);
 void aeStop(aeEventLoop *eventLoop);
 int aeCreateFileEvent(aeEventLoop *eventLoop, int fd, int mask, aeFileProc *proc, void *clientData);

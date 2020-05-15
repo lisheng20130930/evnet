@@ -192,6 +192,9 @@ SOURCE=..\utils\Xor.c
 SOURCE=..\utils\Xor.h
 # End Source File
 # End Group
+# Begin Group "event"
+
+# PROP Default_Filter ""
 # Begin Source File
 
 SOURCE=.\acceptor.c
@@ -235,6 +238,14 @@ SOURCE=.\event.h
 # Begin Source File
 
 SOURCE=.\evfunclib.h
+# End Source File
+# Begin Source File
+
+SOURCE=.\harbor.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\harbor.h
 # End Source File
 # Begin Source File
 
@@ -314,15 +325,28 @@ SOURCE=.\muparser.h
 # End Source File
 # Begin Source File
 
-SOURCE=.\test.c
-# End Source File
-# Begin Source File
-
 SOURCE=.\upload.c
 # End Source File
 # Begin Source File
 
 SOURCE=.\upload.h
+# End Source File
+# End Group
+# Begin Source File
+
+SOURCE=.\test_harbor.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\test_httpc.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\test_httpd.c
+# End Source File
+# Begin Source File
+
+SOURCE=.\test_websocket.c
 # End Source File
 # End Group
 # Begin Group "Header Files"

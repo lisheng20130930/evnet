@@ -54,8 +54,9 @@ void* evnet_createacceptor(unsigned short port, int secrity, char *cert, pfn_msg
 void evnet_destroyacceptor(void* acceptor);
 int evnet_acceptorstart(void* acceptor);
 void evnet_acceptorstop(void* acceptor);
+int evnet_async();
 void evnet_hostbyname(char *name, char ipStr[], int len);
-int evnet_init(int size);
+int evnet_init(int size, int cycle, int flg);
 void evnet_uint();
 void evnet_loop(unsigned int loops);
 unsigned short evnet_channelport(void* c);

@@ -192,13 +192,7 @@ static char *aeApiName(void) {
 }
 #endif
 
-#if(defined(WIN32)||defined(__IOS__)||defined(__ANDROID__))
-#define _TIMEOUT_MS  (0)
-#else
-#define _TIMEOUT_MS  (20)
-#endif
-
-aeEventLoop *aeCreateEventLoop(int setsize)
+aeEventLoop *aeCreateEventLoop(int setsize,int cycle)
 {
     aeEventLoop *eventLoop = NULL;
     int i = 0;
@@ -209,6 +203,7 @@ aeEventLoop *aeCreateEventLoop(int setsize)
     eventLoop->setsize = setsize;
     eventLoop->lastTime = (unsigned int)time(NULL);
     eventLoop->maxfd = -1;
+    eventLoop->cycle = cycle;
     if(aeApiCreate(eventLoop) == -1)
     {
         free(eventLoop->events);
@@ -306,7 +301,7 @@ int aeProcessEvents(aeEventLoop *eventLoop)
          * ASAP because of AE_DONT_WAIT we need to set the timeout
          * to zero */
         tv.tv_sec = 0;
-        tv.tv_usec = _TIMEOUT_MS*1000;
+        tv.tv_usec = eventLoop->cycle*1000;
         tvp = &tv;
         
         numevents = aeApiPoll(eventLoop, tvp);

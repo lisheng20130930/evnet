@@ -5,11 +5,11 @@
 
 #define _BUFF_LEN  (32*1024)
 
-typedef struct libnet_s
-{
+typedef struct libnet_s{
     channel_t  *channelHead;
     aeEventLoop *evLoop;
     char _buff[_BUFF_LEN];
+    int pipe[2]; //PIPE
 }libnet_t;
 
 extern libnet_t g_libnet;

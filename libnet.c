@@ -4,9 +4,11 @@
 #include "channel.h"
 #include "acceptor.h"
 #include "libnet.h"
+#include "evpipe.h"
 
 
 libnet_t g_libnet = {0};
+
 
 void* evnet_createchannel(char *ipStr, unsigned short port, int security)
 {
@@ -68,17 +70,24 @@ void evnet_hostbyname(char *name, char ipStr[], int len)
     aehostbyname(name, ipStr, len);
 }
 
-int evnet_init(int size)
+int evnet_init(int size, int cycle, int flg)
 {
     aesocketinit();
-#ifdef SSL_SUPPORT
+    #ifdef SSL_SUPPORT
 	Evnet_initSSL();
-#endif
+    #endif
     g_libnet.channelHead = NULL;
-    g_libnet.evLoop = aeCreateEventLoop(size);
+    g_libnet.evLoop = aeCreateEventLoop(size,cycle);
     if(!g_libnet.evLoop){
         evnet_uint();
         return (-1);
+    }
+    if(0==flg){
+        ev_pipe(g_libnet.pipe);
+        aeCreateFileEvent(g_libnet.evLoop,g_libnet.pipe[0],AE_READABLE,evpipe_dummy,NULL);
+    }else{
+        g_libnet.pipe[0] = -1;
+        g_libnet.pipe[1] = -1;
     }
     return 0;
 }
@@ -88,7 +97,7 @@ void evnet_uint()
     if(g_libnet.evLoop){
         aeDeleteEventLoop(g_libnet.evLoop);
         g_libnet.evLoop = NULL;
-    }
+    }    
     aesocketuint();
 }
 
@@ -106,4 +115,14 @@ int evnet_size()
         return 0;
     }
     return g_libnet.evLoop->setsize;
+}
+
+int evnet_async()
+{
+    if(g_libnet.pipe[1]==-1){
+        return -1;
+    }
+    char dummy[1] = {'0'};
+    pipe_write(g_libnet.pipe[1],(void*)dummy,sizeof(dummy));
+    return 0;
 }
