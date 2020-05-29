@@ -29,7 +29,7 @@ channel_t* channel_create(fd_t fd, char *ipStr, unsigned short port, int upstrea
 void channel_close(channel_t *channel, int errcode);
 int channel_bind(channel_t *channel, pfn_msg_handler handler, unsigned int timeouts, void *pUsr);
 bool channel_send(channel_t *channel, char *data, int size);
-void channel_crond(int loops);
+void channel_crond();
 
 #ifdef SSL_SUPPORT
 void Evnet_initSSL();

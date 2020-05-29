@@ -1,3 +1,4 @@
+#include "libos.h"
 #include "evfunclib.h"
 #include "aesocket.h"
 #include "event.h"
@@ -103,10 +104,17 @@ void evnet_uint()
 
 void evnet_loop(unsigned int loops)
 {
+    static time_t g_lastCrondTime = 0;  
+    #define CROND_INTERVAL  (1)
+
     if(NULL != g_libnet.evLoop){
         aeProcessEvents(g_libnet.evLoop);
-    }    
-    channel_crond(loops);
+    }
+    time_t currTime = time(NULL);
+    if(currTime>(g_lastCrondTime+CROND_INTERVAL)){
+        channel_crond();
+        g_lastCrondTime = currTime;
+    }
 }
 
 int evnet_size()

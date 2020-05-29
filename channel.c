@@ -6,7 +6,6 @@
 #include "time.h"
 
 
-#define _CHANNEL_LOOPS_NUM    (80)
 #define _MAX_CONNECTING_SECS  (3)
 #define _HTONL(x) ((((x)&0xff)<<24)|(((x)&0xff00)<<8)|(((x)&0xff000000)>>24)|(((x)&0xff0000)>>8))
 #define _FLG_RECV_ENABLED    (0x01)
@@ -413,11 +412,9 @@ static void _check_timeouts(channel_t *head)
     }while(node!=tail);
 }
 
-void channel_crond(int loops)
+void channel_crond()
 {    
-    if(0==(loops % _CHANNEL_LOOPS_NUM)){
-        if(g_libnet.channelHead){
-            _check_timeouts(g_libnet.channelHead);
-        }        
+    if(g_libnet.channelHead){
+        _check_timeouts(g_libnet.channelHead);
     }
 }
