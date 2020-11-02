@@ -6,7 +6,7 @@
 
 typedef struct multipart_parser multipart_parser;
 typedef struct multipart_parser_settings multipart_parser_settings;
-typedef struct multipart_parser_state multipart_parser_state;
+
 
 typedef int (*multipart_data_cb) (multipart_parser*, const char *at, size_t length);
 typedef int (*multipart_notify_cb) (multipart_parser*);
